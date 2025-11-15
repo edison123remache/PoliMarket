@@ -1,0 +1,30 @@
+name: poli_market
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  supabase_flutter: ^2.0.0
+  flutter_dotenv: ^5.1.0
+  equatable: ^2.0.5
+  smooth_page_indicator: ^1.1.0
+  intl: ^0.18.1
+  image_picker: ^1.0.4
+  http: ^0.13.5
+  permission_handler: ^11.0.1
+  geolocator: ^9.0.2
+  cached_network_image: ^3.3.0
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
