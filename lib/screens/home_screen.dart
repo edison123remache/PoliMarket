@@ -35,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error cargando servicios: $e');
+      debugPrint('Error cargando servicios: $e');
       setState(() {
         _isLoading = false;
       });
@@ -75,38 +75,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header con el logo
-            /*_buildHeader(),*/
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Header con el logo
+              /*_buildHeader(),*/
 
-            // Barra de búsqueda
-            _buildSearchBar(),
+              // Barra de búsqueda
+              _buildSearchBar(),
+              //_buildSearchBar(),
 
-            // Contenido scrolleable
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Banner scrolleable
-                    _buildBannerSection(),
+              // Contenido scrolleable
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Banner scrolleable
+                      _buildBannerSection(),
 
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-                    // Sección de servicios
-                    _buildServiciosSection(),
-                  ],
+                      // Sección de servicios
+                      _buildServiciosSection(),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildBottomNavBar(),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
@@ -138,32 +146,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
 */
   Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: 'Buscar servicios...',
-          hintStyle: TextStyle(color: Colors.grey[400]),
-          border: InputBorder.none,
-          icon: Icon(Icons.search, color: Colors.grey[600]),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        onSubmitted: (value) {
-          print('Buscar: $value');
-          // Aquí implementarás la búsqueda
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: SearchBar(
+        backgroundColor: WidgetStateProperty.all(Colors.white),
+        padding: WidgetStateProperty.all(EdgeInsets.symmetric(horizontal: 16.0)),
+        elevation: WidgetStateProperty.all(0.0),
+        leading: Icon(Icons.search, color: Colors.grey[600]),
+
+        onSubmitted: (query) {
+          if (query.isEmpty) return;
+
+          // Navegar y pasar la query...
+          Navigator.of(context).pushNamed("/search", arguments: query);
         },
+
+        hintText: "Buscar servicios...",
       ),
     );
   }

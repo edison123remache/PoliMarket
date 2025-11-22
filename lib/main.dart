@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:poli_market/screens/search_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'config/env.dart';
-import 'app.dart';
 import 'auth_wrapper.dart';
 import 'screens/profile_screen.dart';
 import 'services/location_service.dart';
 import 'services/vista_mapa.dart';
 import 'screens/subir_servicio_screen.dart';
-//import 'screens/info_servicio.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +38,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/profile': (context) => const ProfileScreen(),
         '/SubirServ': (context) => const SubirServicioScreen(),
+        '/search': (context) => const SearchScreen(),
         //'/VerServ': (context) => const DetalleServicioScreen(servicioId: servicio.id),
       },
       debugShowCheckedModeBanner: false,
