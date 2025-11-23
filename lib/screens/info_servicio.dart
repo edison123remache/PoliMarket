@@ -5,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/vista_mapa.dart';
+import '../services/chat_service.dart';
+import '../screens/chat_screen.dart';
 
 class DetalleServicioScreen extends StatefulWidget {
   final String servicioId;
@@ -64,6 +66,49 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
     }
   }
 
+  // ----------------- CHAT -----------------
+  Future<void> _contactarVendedor() async {
+    final currentUser = _authService.currentUser;
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Debes iniciar sesión")));
+      return;
+    }
+
+    final vendedorId = _servicio!['user_id'];
+
+    if (currentUser.id == vendedorId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No puedes chatear contigo mismo")),
+      );
+      return;
+    }
+
+    try {
+      // Crear chat si no existe
+      final chatId = await ChatService.instance.getOrCreateChat(
+        user1Id: currentUser.id,
+        user2Id: vendedorId,
+        serviceId: widget.servicioId,
+      );
+
+      // Ir al chat
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(chatId: chatId, otherUserId: vendedorId),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error al iniciar chat: $e")));
+    }
+  }
+
+  // ----------------- MENÚ OPCIONES -----------------
   void _mostrarMenuOpciones() {
     final user = _authService.currentUser;
     final bool esMiPublicacion = user?.id == _servicio?['user_id'];
@@ -187,6 +232,7 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
     );
   }
 
+  // ----------------- BUILD -----------------
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -231,16 +277,12 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Carrusel de imágenes
             _buildCarruselImagenes(),
-
-            // Contenido
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título
                   Text(
                     _servicio!['titulo'],
                     style: const TextStyle(
@@ -249,14 +291,10 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // Botón Contactar
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        // TODO: Implementar chat
-                      },
+                      onPressed: _contactarVendedor,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: Colors.blue,
@@ -269,16 +307,10 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Descripción
                   _buildSeccionDescripcion(),
                   const SizedBox(height: 24),
-
-                  // Información del vendedor
                   _buildSeccionVendedor(),
                   const SizedBox(height: 24),
-
-                  // Ubicación
                   _buildSeccionUbicacion(),
                 ],
               ),
@@ -289,6 +321,7 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
     );
   }
 
+  // ----------------- COMPONENTES -----------------
   Widget _buildCarruselImagenes() {
     final List<String> fotos = List<String>.from(_servicio!['fotos'] ?? []);
 
@@ -332,7 +365,6 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        // Indicadores
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -381,9 +413,7 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
         ),
         const SizedBox(height: 12),
         GestureDetector(
-          onTap: () {
-            // TODO: Navegar a perfil del vendedor
-          },
+          onTap: () {},
           child: Row(
             children: [
               CircleAvatar(
@@ -446,7 +476,6 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        // Mapa estático
         if (_mapaUrl != null)
           Container(
             height: 200,
@@ -490,7 +519,7 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
   }
 }
 
-// Diálogo de reporte
+// ----------------- DIALOGO DE REPORTE -----------------
 class _ReporteDialog extends StatefulWidget {
   final String servicioId;
   final VoidCallback onReportado;
@@ -554,7 +583,6 @@ class __ReporteDialogState extends State<_ReporteDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Barra superior para arrastrar
           Container(
             margin: const EdgeInsets.only(top: 12, bottom: 8),
             width: 40,
@@ -564,8 +592,6 @@ class __ReporteDialogState extends State<_ReporteDialog> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
-          // Encabezado
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -579,8 +605,6 @@ class __ReporteDialogState extends State<_ReporteDialog> {
               ],
             ),
           ),
-
-          // Razones de reporte
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -598,8 +622,6 @@ class __ReporteDialogState extends State<_ReporteDialog> {
               }).toList(),
             ),
           ),
-
-          // Botones de acción
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(

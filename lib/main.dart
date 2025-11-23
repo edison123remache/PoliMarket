@@ -9,6 +9,7 @@ import 'screens/profile_screen.dart';
 import 'services/location_service.dart';
 import 'services/vista_mapa.dart';
 import 'screens/subir_servicio_screen.dart';
+import 'screens/search_screen.dart'; 
 //import 'screens/info_servicio.dart';
 
 void main() async {
@@ -41,6 +42,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/profile': (context) => const ProfileScreen(),
         '/SubirServ': (context) => const SubirServicioScreen(),
+         '/search': (context) => const SearchScreen(),
         //'/VerServ': (context) => const DetalleServicioScreen(servicioId: servicio.id),
       },
       debugShowCheckedModeBanner: false,

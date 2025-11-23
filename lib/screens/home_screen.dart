@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
+// IMPORTA LA PANTALLA DE CHATS (AJUSTA el nombre del paquete si es necesario)
+import '/screens/chat_list_screen.dart';
+
 import 'info_servicio.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -35,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error cargando servicios: $e');
+      debugPrint('Error cargando servicios: $e');
       setState(() {
         _isLoading = false;
       });
@@ -47,28 +50,30 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedIndex = index;
     });
 
-    // Aquí puedes agregar navegación a otras pantallas
     switch (index) {
       case 0:
         // Ya estamos en Home
         break;
       case 1:
         // Navegar a Calendario
-        print('Navegar a Calendario');
+        debugPrint('Navegar a Calendario');
         break;
       case 2:
         // Navegar a Añadir Publicación
         Navigator.of(context).pushNamed('/SubirServ');
-        print('Navegar a Añadir Publicación');
+        debugPrint('Navegar a Añadir Publicación');
         break;
       case 3:
-        // Navegar a Mensajes
-        print('Navegar a Mensajes');
+        // Navegar a Mensajes -> ABRE ChatListScreen
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ChatListScreen()),
+        );
         break;
       case 4:
         // Navegar a Perfil
         Navigator.of(context).pushNamed('/profile');
-        print('Navegar a Perfil');
+        debugPrint('Navegar a Perfil');
         break;
     }
   }
@@ -80,9 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header con el logo
-            /*_buildHeader(),*/
-
             // Barra de búsqueda
             _buildSearchBar(),
 
@@ -110,33 +112,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /*
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'PoliMarket',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF2C5F2D), // Verde oscuro del mockup
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-*/
   Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.all(20),
@@ -161,8 +136,11 @@ class _HomeScreenState extends State<HomeScreen> {
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
         ),
         onSubmitted: (value) {
-          print('Buscar: $value');
-          // Aquí implementarás la búsqueda
+          debugPrint('Buscar: $value');
+
+          if (value.trim().isEmpty) return;
+
+          Navigator.pushNamed(context, '/search', arguments: value.trim());
         },
       ),
     );
@@ -270,12 +248,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Principal',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
@@ -297,32 +275,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               )
             : _servicios.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(40.0),
-                  child: Text(
-                    'No hay servicios disponibles',
-                    style: TextStyle(color: Colors.grey[600]),
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40.0),
+                      child: Text(
+                        'No hay servicios disponibles',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 0.85,
+                      ),
+                      itemCount: _servicios.length,
+                      itemBuilder: (context, index) {
+                        return _buildServiceCard(_servicios[index]);
+                      },
+                    ),
                   ),
-                ),
-              )
-            : Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemCount: _servicios.length,
-                  itemBuilder: (context, index) {
-                    return _buildServiceCard(_servicios[index]);
-                  },
-                ),
-              ),
         const SizedBox(height: 20),
       ],
     );
@@ -471,8 +450,10 @@ class _HomeScreenState extends State<HomeScreen> {
               label,
               style: TextStyle(
                 fontSize: 11,
-                color: isSelected ? const Color(0xFFF5501D) : Colors.grey[400],
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color:
+                    isSelected ? const Color(0xFFF5501D) : Colors.grey[400],
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ],
