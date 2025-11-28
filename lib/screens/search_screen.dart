@@ -18,7 +18,7 @@ class _SearchScreenState extends State<SearchScreen> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final query = ModalRoute.of(context)!.settings.arguments as String;
+final query = (ModalRoute.of(context)?.settings.arguments as String?)?.trim() ?? '';
       setState(() {
         searchQuery = query;
         loadDataFuture = loadData(query);

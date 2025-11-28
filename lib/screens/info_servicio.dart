@@ -67,46 +67,52 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
   }
 
   // ----------------- CHAT -----------------
-  Future<void> _contactarVendedor() async {
-    final currentUser = _authService.currentUser;
-
-    if (currentUser == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Debes iniciar sesión")));
-      return;
-    }
-
-    final vendedorId = _servicio!['user_id'];
-
-    if (currentUser.id == vendedorId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No puedes chatear contigo mismo")),
-      );
-      return;
-    }
-
-    try {
-      // Crear chat si no existe
-      final chatId = await ChatService.instance.getOrCreateChat(
-        user1Id: currentUser.id,
-        user2Id: vendedorId,
-        serviceId: widget.servicioId,
-      );
-
-      // Ir al chat
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(chatId: chatId, otherUserId: vendedorId),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error al iniciar chat: $e")));
-    }
+Future<void> _contactarVendedor() async {
+  final currentUser = _authService.currentUser;
+  if (currentUser == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Debes iniciar sesión")),
+    );
+    return;
   }
+
+  final vendedorId = _servicio!['user_id'];
+  if (currentUser.id == vendedorId) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("No puedes chatear contigo mismo")),
+    );
+    return;
+  }
+
+  try {
+    final chatId = await ChatService.instance.getOrCreateChat(
+      user1Id: currentUser.id,
+      user2Id: vendedorId,
+      serviceId: widget.servicioId, 
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          chatId: chatId,
+          otherUserId: vendedorId,
+          servicioId: _servicio!['id'], 
+          servicioTitulo: _servicio!['titulo'],
+          servicioPrecio: _servicio!['precio'].toString(),
+          servicioFotoUrl: (_servicio!['fotos'] as List).isNotEmpty
+              ? (_servicio!['fotos'] as List).first
+              : null,
+        ),
+      ),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error al iniciar chat: $e")),
+    );
+  }
+}
+
 
   // ----------------- MENÚ OPCIONES -----------------
   void _mostrarMenuOpciones() {
@@ -638,20 +644,10 @@ class __ReporteDialogState extends State<_ReporteDialog> {
                     onPressed: _razonSeleccionada != null && !_enviandoReporte
                         ? _enviarReporte
                         : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
                     child: _enviandoReporte
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                        : const Text('Enviar Reporte'),
+                        ? const CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2)
+                        : const Text('Enviar'),
                   ),
                 ),
               ],

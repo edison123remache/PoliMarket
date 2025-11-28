@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-
-// IMPORTA LA PANTALLA DE CHATS (AJUSTA el nombre del paquete si es necesario)
 import '/screens/chat_list_screen.dart';
-
 import 'info_servicio.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,6 +12,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _searchController = TextEditingController();
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _servicios = [];
   bool _isLoading = true;
@@ -44,6 +42,14 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
   }
+  Future<void> _refreshServicios() async {
+  setState(() {
+    _isLoading = true;
+  });
+
+  await _loadServicios();
+}
+
 
   void _onNavBarTap(int index) {
     setState(() {
@@ -90,18 +96,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Contenido scrolleable
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Banner scrolleable
-                    _buildBannerSection(),
-
-                    const SizedBox(height: 24),
-
-                    // Sección de servicios
-                    _buildServiciosSection(),
-                  ],
+              child: RefreshIndicator(
+                color: const Color(0xFFF5501D),
+                onRefresh: _refreshServicios,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildBannerSection(),
+                      const SizedBox(height: 24),
+                      _buildServiciosSection(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -128,6 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       child: TextField(
+  controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Buscar servicios...',
           hintStyle: TextStyle(color: Colors.grey[400]),
@@ -140,7 +148,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
           if (value.trim().isEmpty) return;
 
-          Navigator.pushNamed(context, '/search', arguments: value.trim());
+Navigator.pushNamed(context, '/search', arguments: value.trim());
+_searchController.clear();
         },
       ),
     );
@@ -275,33 +284,32 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               )
             : _servicios.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(40.0),
-                      child: Text(
-                        'No hay servicios disponibles',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: 0.85,
-                      ),
-                      itemCount: _servicios.length,
-                      itemBuilder: (context, index) {
-                        return _buildServiceCard(_servicios[index]);
-                      },
-                    ),
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40.0),
+                  child: Text(
+                    'No hay servicios disponibles',
+                    style: TextStyle(color: Colors.grey[600]),
                   ),
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.85,
+                  ),
+                  itemCount: _servicios.length,
+                  itemBuilder: (context, index) {
+                    return _buildServiceCard(_servicios[index]);
+                  },
+                ),
+              ),
         const SizedBox(height: 20),
       ],
     );
@@ -450,10 +458,8 @@ class _HomeScreenState extends State<HomeScreen> {
               label,
               style: TextStyle(
                 fontSize: 11,
-                color:
-                    isSelected ? const Color(0xFFF5501D) : Colors.grey[400],
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected ? const Color(0xFFF5501D) : Colors.grey[400],
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ],

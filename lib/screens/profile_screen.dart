@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import 'tutorial_policies_screen.dart';
+import 'home_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId; // Si es null, muestra el perfil del usuario actual
