@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/chat_service.dart';
 import 'chat_screen.dart';
-import '../screens/chat_list_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -38,7 +37,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         Navigator.of(context).pushNamed('/');
         break;
       case 1:
-        debugPrint('Agenda');
+        debugPrint('/Agenda');
         break;
       case 2:
         Navigator.of(context).pushNamed('/SubirServ');
@@ -109,72 +108,90 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       itemCount: chats.length,
                       separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, i) {
-                        final chat = chats[i];
+itemBuilder: (context, i) {
+  final chat = chats[i];
 
-                        final otherUserId = chat['user1_id'] == user!.id
-                            ? chat['user2_id']
-                            : chat['user1_id'];
+  final otherUserId = chat['user1_id'] == user!.id
+      ? chat['user2_id']
+      : chat['user1_id'];
 
-                        final ultimoMensaje = (chat['ultimo_mensaje'] ?? '').toString();
-                        final ultimoMensajeEn = chat['ultimo_mensaje_en'] as String?;
-                        final servicioTitulo = chat['servicio_titulo']?.toString() ?? '';
-                        final servicioFotoUrl = chat['servicio_foto_url']?.toString();
+  final ultimoMensaje = (chat['ultimo_mensaje'] ?? '').toString();
+  final ultimoMensajeEn = chat['ultimo_mensaje_en'] as String?;
+  final servicioTitulo = chat['servicio_titulo']?.toString() ?? '';
+  final servicioFotoUrl = chat['servicio_foto_url']?.toString();
+  final servicioId = chat['service_id']?.toString();
 
-                        return FutureBuilder<Map<String, dynamic>?>(
-                          future: _getProfileCached(otherUserId),
-                          builder: (context, profileSnap) {
-                            final profile = profileSnap.data;
-                            final nombreUsuario = profile?['nombre'] ?? 'Usuario';
+  return FutureBuilder<Map<String, dynamic>?>(
+    future: _getProfileCached(otherUserId),
+    builder: (context, profileSnap) {
+      final profile = profileSnap.data;
+      final nombreUsuario = profile?['nombre'] ?? 'Usuario';
 
-                            return ListTile(
-                              leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: servicioFotoUrl != null &&
-                                        servicioFotoUrl.startsWith("http")
-                                    ? Image.network(
-                                        servicioFotoUrl,
-                                        width: 56,
-                                        height: 56,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Container(
-                                        width: 56,
-                                        height: 56,
-                                        color: Colors.grey[300],
-                                        child: const Icon(Icons.image_outlined),
-                                      ),
-                              ),
-                              title: Text(
-                                "$nombreUsuario · $servicioTitulo",
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              subtitle: ultimoMensaje.isNotEmpty
-                                  ? Text(
-                                      ultimoMensaje,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    )
-                                  : null,
-                              trailing: Text(_formatLastMessageTime(ultimoMensajeEn)),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ChatScreen(
-                                      chatId: chat['id'].toString(),
-                                      otherUserId: otherUserId,
-                                      servicioTitulo: servicioTitulo.isNotEmpty ? servicioTitulo : null,
-                                      servicioFotoUrl: servicioFotoUrl,
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        );
-                      },
+      return ListTile(
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: servicioFotoUrl != null &&
+                  servicioFotoUrl.startsWith("http")
+              ? Image.network(
+                  servicioFotoUrl,
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                )
+              : Container(
+                  width: 56,
+                  height: 56,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.image_outlined),
+                ),
+        ),
+        title: Text(
+          "$nombreUsuario · $servicioTitulo",
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: ultimoMensaje.isNotEmpty
+            ? Text(
+                ultimoMensaje,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              )
+            : null,
+        trailing: Text(_formatLastMessageTime(ultimoMensajeEn)),
+        onTap: () async {
+          // ✅ Obtener vendedor_id del servicio
+          String? vendedorId;
+          if (servicioId != null) {
+            try {
+              final servicio = await Supabase.instance.client
+                  .from('servicios')
+                  .select('user_id')
+                  .eq('id', servicioId)
+                  .single();
+              vendedorId = servicio['user_id'];
+            } catch (e) {
+              debugPrint('Error obteniendo vendedor: $e');
+            }
+          }
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChatScreen(
+                chatId: chat['id'].toString(),
+                otherUserId: otherUserId,
+                servicioTitulo: servicioTitulo.isNotEmpty ? servicioTitulo : null,
+                servicioFotoUrl: servicioFotoUrl,
+                servicioId: servicioId,
+                vendedorId: vendedorId, // ✅ PASADO
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+},
                     );
                   },
                 ),

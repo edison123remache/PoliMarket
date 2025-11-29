@@ -1,4 +1,4 @@
-package com.example.poli_market
+package com.grupo6.llama_market
 
 import io.flutter.embedding.android.FlutterActivity
 

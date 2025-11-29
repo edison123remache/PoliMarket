@@ -14,7 +14,8 @@ class ChatScreen extends StatefulWidget {
   final String? servicioTitulo;
   final String? servicioPrecio;
   final String? servicioFotoUrl;
-  final String? servicioId; // <--- nuevo campo opcional
+  final String? servicioId;
+  final String? vendedorId; // ID del vendedor del servicio
 
   const ChatScreen({
     super.key,
@@ -23,7 +24,8 @@ class ChatScreen extends StatefulWidget {
     this.servicioTitulo,
     this.servicioPrecio,
     this.servicioFotoUrl,
-    this.servicioId, // <--- agregar al constructor
+    this.servicioId,
+    this.vendedorId,
   });
 
   @override
@@ -52,6 +54,13 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.addListener(() {
       setState(() => _isTyping = _controller.text.trim().isNotEmpty);
     });
+
+    // 🔍 DEBUG: Ver qué valores llegan
+    debugPrint('=== CHAT SCREEN DEBUG ===');
+    debugPrint('Mi ID (user): ${user?.id}');
+    debugPrint('Otro usuario ID: ${widget.otherUserId}');
+    debugPrint('Vendedor ID recibido: ${widget.vendedorId}');
+    debugPrint('========================');
   }
 
   Future<void> _loadOtherProfile() async {
@@ -190,25 +199,39 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final String nombre = _otherProfile?['nombre'] ?? 'Cargando...';
     final String? avatarUrl = _otherProfile?['avatar_url'];
-    final bool soyVendedor = widget.servicioTitulo != null;
+
+    // ✅ LÓGICA CORRECTA:
+    // Si vendedorId es null, usamos fallback (asumir que quien tiene servicioTitulo es vendedor)
+    final bool soyVendedor = widget.vendedorId != null
+        ? widget.vendedorId == user?.id
+        : false; // Si no hay vendedorId, no mostrar botón
+
+    final bool otroEsVendedor = widget.vendedorId != null
+        ? widget.vendedorId == widget.otherUserId
+        : widget.servicioTitulo != null; // Fallback
+
+    // 🔍 DEBUG en el build
+    debugPrint('🔍 soyVendedor: $soyVendedor');
+    debugPrint('🔍 otroEsVendedor: $otroEsVendedor');
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(  //cambios hechos1
+      appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-
         title: GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProfileScreen(userId: widget.otherUserId),
-            ),
-          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProfileScreen(userId: widget.otherUserId),
+              ),
+            );
+          },
           child: Row(
             children: [
               CircleAvatar(
@@ -216,34 +239,37 @@ class _ChatScreenState extends State<ChatScreen> {
                 backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
                     ? NetworkImage(avatarUrl)
                     : null,
+                backgroundColor: Colors.grey[400],
                 child: avatarUrl == null || avatarUrl.isEmpty
                     ? const Icon(Icons.person, size: 22)
                     : null,
-                backgroundColor: Colors.grey[400],
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    nombre,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nombre,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  Text(
-                    soyVendedor
-                        ? 'Acerca del comprador'
-                        : 'Acerca del vendedor',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
+                    Text(
+                      otroEsVendedor
+                          ? 'Acerca del vendedor'
+                          : 'Acerca del comprador',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
-
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.black),
@@ -273,7 +299,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   await ChatService.instance.deleteChat(widget.chatId);
 
                   if (mounted) {
-                    Navigator.pop(context); // Regresa a la bandeja
+                    Navigator.pop(context);
                   }
                 }
               }
@@ -284,7 +310,6 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-
       body: Column(
         children: [
           if (widget.servicioTitulo != null)
@@ -498,7 +523,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             'propuesto_por':
                                 citaMap['propuesto_por'] ?? user?.id,
                           };
-                          return CitaMessageBubble1(
+                          return CitaMessageBubble(
                             cita: cita,
                             esPropietario: isMe,
                           );
@@ -584,27 +609,29 @@ class _ChatScreenState extends State<ChatScreen> {
                   right: 16,
                   child: Row(
                     children: [
-                      FloatingActionButton.small(
-                        heroTag: "propuesta",
-                        backgroundColor: Colors.orange,
-                        onPressed: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PropuestaEncuentroScreen(
-                                chatId: widget.chatId,
-                                otherUserId: widget.otherUserId,
+                      // ✅ Solo el VENDEDOR puede crear propuestas
+                      if (soyVendedor)
+                        FloatingActionButton.small(
+                          heroTag: "propuesta",
+                          backgroundColor: Colors.orange,
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PropuestaEncuentroScreen(
+                                  chatId: widget.chatId,
+                                  otherUserId: widget.otherUserId,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                        child: const Icon(
-                          Icons.calendar_today,
-                          color: Colors.white,
-                          size: 20,
+                            );
+                          },
+                          child: const Icon(
+                            Icons.calendar_today,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                      if (soyVendedor) const SizedBox(width: 12),
                       Expanded(
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:poli_market/screens/info_servicio.dart';
+import 'package:llama_market/screens/info_servicio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -155,7 +155,6 @@ final query = (ModalRoute.of(context)?.settings.arguments as String?)?.trim() ??
     );
   }
 
-  // TODO LO DEMÁS QUEDA EXACTAMENTE IGUAL (tarjetas, loadData, etc.)
   Widget buildServiceCard(Map<String, dynamic> servicio) {
     final String titulo = servicio['titulo'] ?? 'Sin título';
     final List<dynamic> fotos = servicio['fotos'] ?? [];

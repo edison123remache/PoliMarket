@@ -16,6 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _servicios = [];
   bool _isLoading = true;
+  String _sortOption = 'Más recientes'; // Opción de ordenamiento actual
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _servicios = List<Map<String, dynamic>>.from(response);
         _isLoading = false;
       });
+      _applySorting(); // Aplicar ordenamiento después de cargar
     } catch (e) {
       debugPrint('Error cargando servicios: $e');
       setState(() {
@@ -42,14 +44,99 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
   }
+
   Future<void> _refreshServicios() async {
-  setState(() {
-    _isLoading = true;
-  });
+    setState(() {
+      _isLoading = true;
+    });
 
-  await _loadServicios();
-}
+    await _loadServicios();
+  }
 
+  void _applySorting() {
+    setState(() {
+      if (_sortOption == 'Más recientes') {
+        // Ya viene ordenado por creado_en descendente
+      } else if (_sortOption == 'Más antiguos') {
+        _servicios = _servicios.reversed.toList();
+      } else if (_sortOption == 'A-Z') {
+        _servicios.sort((a, b) => (a['titulo'] ?? '')
+            .toString()
+            .toLowerCase()
+            .compareTo((b['titulo'] ?? '').toString().toLowerCase()));
+      } else if (_sortOption == 'Z-A') {
+        _servicios.sort((a, b) => (b['titulo'] ?? '')
+            .toString()
+            .toLowerCase()
+            .compareTo((a['titulo'] ?? '').toString().toLowerCase()));
+      }
+    });
+  }
+
+  void _showSortOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Ordenar por',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildSortOption('Más recientes'),
+              _buildSortOption('Más antiguos'),
+              _buildSortOption('A-Z'),
+              _buildSortOption('Z-A'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSortOption(String option) {
+    final bool isSelected = _sortOption == option;
+    return ListTile(
+      leading: Radio<String>(
+        value: option,
+        groupValue: _sortOption,
+        activeColor: const Color(0xFFF5501D),
+        onChanged: (String? value) {
+          if (value != null) {
+            setState(() {
+              _sortOption = value;
+            });
+            _applySorting();
+            Navigator.pop(context);
+          }
+        },
+      ),
+      title: Text(
+        option,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+      onTap: () {
+        setState(() {
+          _sortOption = option;
+        });
+        _applySorting();
+        Navigator.pop(context);
+      },
+    );
+  }
 
   void _onNavBarTap(int index) {
     setState(() {
@@ -91,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Barra de búsqueda
+            // Barra de búsqueda con botón de ordenar
             _buildSearchBar(),
 
             // Contenido scrolleable
@@ -122,41 +209,76 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+      child: Row(
+        children: [
+          // Barra de búsqueda
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(25),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Buscar servicios...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  border: InputBorder.none,
+                  icon: Icon(Icons.search, color: Colors.grey[600]),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onSubmitted: (value) {
+                  debugPrint('Buscar: $value');
+
+                  if (value.trim().isEmpty) return;
+
+                  Navigator.pushNamed(context, '/search',
+                      arguments: value.trim());
+                  _searchController.clear();
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Botón de ordenar
+          GestureDetector(
+            onTap: _showSortOptions,
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: const Color(0xFFB89968),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.swap_vert,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
           ),
         ],
-      ),
-      child: TextField(
-  controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Buscar servicios...',
-          hintStyle: TextStyle(color: Colors.grey[400]),
-          border: InputBorder.none,
-          icon: Icon(Icons.search, color: Colors.grey[600]),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        onSubmitted: (value) {
-          debugPrint('Buscar: $value');
-
-          if (value.trim().isEmpty) return;
-
-Navigator.pushNamed(context, '/search', arguments: value.trim());
-_searchController.clear();
-        },
       ),
     );
   }
 
   Widget _buildBannerSection() {
-    final PageController _controller = PageController();
+    final PageController controller = PageController();
 
     final List<Map<String, String>> banners = [
       {
@@ -182,7 +304,7 @@ _searchController.clear();
         SizedBox(
           height: 200,
           child: PageView.builder(
-            controller: _controller,
+            controller: controller,
             itemCount: banners.length,
             itemBuilder: (context, index) {
               final banner = banners[index];
@@ -192,7 +314,7 @@ _searchController.clear();
         ),
         const SizedBox(height: 12),
         SmoothPageIndicator(
-          controller: _controller,
+          controller: controller,
           count: banners.length,
           effect: WormEffect(
             dotHeight: 10,
@@ -284,32 +406,33 @@ _searchController.clear();
                 ),
               )
             : _servicios.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(40.0),
-                  child: Text(
-                    'No hay servicios disponibles',
-                    style: TextStyle(color: Colors.grey[600]),
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40.0),
+                      child: Text(
+                        'No hay servicios disponibles',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 0.85,
+                      ),
+                      itemCount: _servicios.length,
+                      itemBuilder: (context, index) {
+                        return _buildServiceCard(_servicios[index]);
+                      },
+                    ),
                   ),
-                ),
-              )
-            : Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemCount: _servicios.length,
-                  itemBuilder: (context, index) {
-                    return _buildServiceCard(_servicios[index]);
-                  },
-                ),
-              ),
         const SizedBox(height: 20),
       ],
     );
@@ -321,9 +444,8 @@ _searchController.clear();
     final String imageUrl = fotos.isNotEmpty ? fotos[0] : '';
 
     // Acortar título si es muy largo
-    final String displayTitle = titulo.length > 25
-        ? '${titulo.substring(0, 22)}...'
-        : titulo;
+    final String displayTitle =
+        titulo.length > 25 ? '${titulo.substring(0, 22)}...' : titulo;
 
     return GestureDetector(
       onTap: () {

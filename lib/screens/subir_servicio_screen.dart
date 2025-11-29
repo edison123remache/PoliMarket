@@ -86,24 +86,22 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
     }
 
     try {
-      final List<XFile>? selectedImages = await _picker.pickMultiImage(
+      final selectedImages = await _picker.pickMultiImage(
         maxWidth: 1200,
         maxHeight: 1200,
         imageQuality: 80,
       );
 
-      if (selectedImages != null) {
-        int availableSlots = 3 - _fotos.length;
-        int imagesToAdd = selectedImages.length > availableSlots
-            ? availableSlots
-            : selectedImages.length;
+      int availableSlots = 3 - _fotos.length;
+      int imagesToAdd = selectedImages.length > availableSlots
+          ? availableSlots
+          : selectedImages.length;
 
-        for (int i = 0; i < imagesToAdd; i++) {
-          _fotos.add(File(selectedImages[i].path));
-        }
-
-        setState(() {});
+      for (int i = 0; i < imagesToAdd; i++) {
+        _fotos.add(File(selectedImages[i].path));
       }
+
+      setState(() {});
     } catch (e) {
       _mostrarError('Error al seleccionar imágenes: $e');
     }
@@ -308,7 +306,7 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
         const SizedBox(height: 12),
 
         // Grid de fotos
-        Container(
+        SizedBox(
           height: 120,
           child: Row(
             children: [

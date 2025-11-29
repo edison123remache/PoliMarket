@@ -61,7 +61,7 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error cargando datos: $e');
+      debugPrint('Error cargando datos: $e');
       setState(() => _isLoading = false);
     }
   }

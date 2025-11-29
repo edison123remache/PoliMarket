@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import 'tutorial_policies_screen.dart';
-import 'home_screen.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   final String? userId; // Si es null, muestra el perfil del usuario actual
@@ -64,7 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error cargando perfil: $e');
+      debugPrint('Error cargando perfil: $e');
       setState(() {
         _isLoading = false;
       });
@@ -119,20 +119,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     switch (index) {
       case 0:
         Navigator.of(context).pushNamed('/');
-        print('Navegar a Home');
+        debugPrint('Navegar a Home');
         break;
       case 1:
         // Navegar a Calendario
-        print('Navegar a Calendario');
+        debugPrint('Navegar a Calendario');
         break;
       case 2:
         // Navegar a Añadir Publicación
         Navigator.of(context).pushNamed('/SubirServ');
-        print('Navegar a Añadir Publicación');
+        debugPrint('Navegar a Añadir Publicación');
         break;
       case 3:
         // Navegar a Mensajes
-        print('Navegar a Mensajes');
+        Navigator.of(context).pushNamed('/chatList');
+        debugPrint('Navegar a Mensajes');
         break;
       case 4:
         // Ya estamos en Perfil
@@ -576,7 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return GestureDetector(
       onTap: () {
-        print('Publicación seleccionada: ${publicacion['id']}');
+        debugPrint('Publicación seleccionada: ${publicacion['id']}');
       },
       child: Container(
         decoration: BoxDecoration(
@@ -665,7 +666,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 12),
           _buildMasOption(Icons.settings, 'Ajustes de Cuenta', () {
-            print('Navegar a Ajustes de Cuenta');
+            debugPrint('Navegar a Ajustes de Cuenta');
             // PENDIENTE: Implementar pantalla de ajustes
           }),
           _buildMasOption(

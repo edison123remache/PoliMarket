@@ -224,7 +224,7 @@ class _PropuestaEncuentroScreenState extends State<PropuestaEncuentroScreen> {
 
                           setState(() => _enviando = true);
 
-                          final horaFormateada = _hora!.format(
+                          final _ = _hora!.format(
                             context,
                           ); // ej: 15:30
                           final fechaCompleta = DateTime(

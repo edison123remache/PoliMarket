@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:poli_market/screens/home_screen.dart';
+import 'package:llama_market/screens/home_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth_wrapper.dart';
 import 'services/location_service.dart';
 import 'services/vista_mapa.dart';
 
-// 🔽 IMPORTA TUS PANTALLAS
 import 'screens/profile_screen.dart';
 import 'screens/subir_servicio_screen.dart';
-import 'screens/search_screen.dart'; 
-import 'screens/home_screen.dart';
+import 'screens/search_screen.dart';
+import 'screens/chat_list_screen.dart';
+
 
 
 void main() async {
@@ -67,12 +67,12 @@ class MyApp extends StatelessWidget {
       // ✅ PANTALLA INICIAL
       home: const AuthWrapper(),
 
-      // ✅ ✅ ✅ RUTAS GLOBALES (ANTES NO TENÍAS NINGUNA)
       routes: {
         '/profile': (context) => const ProfileScreen(),
         '/SubirServ': (context) => const SubirServicioScreen(),
         '/search': (context) => const SearchScreen(), 
-        //'/home' : (context) => const HomeScreen(),
+        '/home' : (context) => const HomeScreen(),
+        '/chatList': (context) => const ChatListScreen(),
 
       },
 
