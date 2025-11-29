@@ -11,6 +11,7 @@ class SearchScreen extends StatefulWidget {
   }
 }
 
+
 class _SearchScreenState extends State<SearchScreen> {
   Future<List<Map<String, dynamic>>>? loadDataFuture;
 
@@ -23,6 +24,7 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() {
         loadDataFuture = loadData(query);
       });
+
     });
   }
 
