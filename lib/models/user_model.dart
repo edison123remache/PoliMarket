@@ -8,6 +8,7 @@ class UserModel extends Equatable {
   final String? bio;
   final double ratingAvg;
   final String rol;
+  
   //final bool isVerified;
 
   const UserModel({
