@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:llama_market/screens/register_screen.dart';
-import 'package:llama_market/screens/reset_password_dialog.dart';
+import 'package:randimarket/screens/register_screen.dart';
+import 'package:randimarket/screens/reset_password_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
@@ -97,15 +97,15 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 40),
                 const Text(
-                  'LlamaMarket',
+                  'Randimarket',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFFF5501D),
                   ),
                 ),
-                Image.network(
-                  'https://drive.google.com/thumbnail?id=1pQY3bsgprHO_Idm5QMh1Eq34B86y_nh6&sz=s1000',
+                Image.asset(
+                  'assets/images/logo.png',
                   height: 150,
                   fit: BoxFit.contain,
                 ),
@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Ingrese su Correo ESPOCH',
+                    labelText: 'Ingrese su correo institucional',
                     labelStyle: TextStyle(color: Color(0xFFF6511E)),
                     prefixIcon: Icon(Icons.email, color: Color(0xFFF6511E)),
                     enabledBorder: OutlineInputBorder(

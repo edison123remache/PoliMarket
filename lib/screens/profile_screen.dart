@@ -4,14 +4,15 @@ import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import 'tutorial_policies_screen.dart';
 
-
 class ProfileScreen extends StatefulWidget {
   final String? userId; // Si es null, muestra el perfil del usuario actual
 
   const ProfileScreen({super.key, this.userId});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() {
+    return _ProfileScreenState();
+  }
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
@@ -20,8 +21,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _calificaciones = [];
   bool _isLoading = true;
   final authService = AuthService(Supabase.instance.client);
-
-  int _selectedIndex = 4; // Índice para el elemento "Perfil" en el navbar
 
   @override
   void initState() {
@@ -112,109 +111,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _onNavBarTap(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    switch (index) {
-      case 0:
-        Navigator.of(context).pushNamed('/');
-        debugPrint('Navegar a Home');
-        break;
-      case 1:
-        // Navegar a Calendario
-        debugPrint('Navegar a Calendario');
-        break;
-      case 2:
-        // Navegar a Añadir Publicación
-        Navigator.of(context).pushNamed('/SubirServ');
-        debugPrint('Navegar a Añadir Publicación');
-        break;
-      case 3:
-        // Navegar a Mensajes
-        Navigator.of(context).pushNamed('/chatList');
-        debugPrint('Navegar a Mensajes');
-        break;
-      case 4:
-        // Ya estamos en Perfil
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B35)),
-          ),
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6B35)),
         ),
       );
     }
 
-    if (_perfil == null) {
-      return const Scaffold(body: Center(child: Text('Error cargando perfil')));
-    }
-
-    final bool isOwnProfile =
+    final isOwnProfile =
         widget.userId == null || widget.userId == authService.currentUser?.id;
 
     return Scaffold(
-      backgroundColor:
-          Colors.transparent, // Fondo transparente para el degradado
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFF0EC), // Color superior del degradado (más claro)
-              Color(
-                0xFFF5F5F5,
-              ), // Color inferior del degradado (más oscuro/neutro)
-            ],
-          ),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // Header con foto de perfil
-              _buildProfileHeader(),
+      appBar: isOwnProfile
+          ? null
+          : AppBar(
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              automaticallyImplyLeading: true,
+            ),
+      body: _perfil == null
+          ? Center(child: Text('Error cargando perfil'))
+          : SafeArea(
+              child: ListView(
+                padding: EdgeInsets.all(16.0),
+                children: [
+                  // Header con foto de perfil
+                  _buildProfileHeader(),
 
-              // Contenido
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Sección "Sobre Mi"
-                    _buildSobreMiSection(),
+                  const SizedBox(height: 24),
 
+                  // Sección "Sobre Mi"
+                  _buildSobreMiSection(),
+
+                  const SizedBox(height: 24),
+
+                  // Sección de Calificaciones
+                  _buildCalificacionesSection(),
+
+                  const SizedBox(height: 24),
+
+                  // Sección de Publicaciones
+                  _buildPublicacionesSection(),
+
+                  if (isOwnProfile) ...[
                     const SizedBox(height: 24),
-
-                    // Sección de Calificaciones
-                    _buildCalificacionesSection(),
-
-                    const SizedBox(height: 24),
-
-                    // Sección de Publicaciones
-                    _buildPublicacionesSection(),
-
-                    if (isOwnProfile) ...[
-                      const SizedBox(height: 24),
-                      // Sección "Más"
-                      _buildMasSection(),
-                    ],
+                    // Sección "Más"
+                    _buildMasSection(),
                   ],
-                ),
+                ],
               ),
-              const SizedBox(height: 80), // Espacio para el BottomNavBar
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNavBar(),
+            ),
     );
   }
 
@@ -230,12 +179,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
+        borderRadius: BorderRadius.circular(30.0),
         boxShadow: [
           BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
         ],
@@ -769,88 +715,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildNavBarItem(Icons.home, 'Home', 0),
-              _buildNavBarItem(Icons.calendar_today, 'Agenda', 1),
-              _buildAddButton(),
-              _buildNavBarItem(Icons.message, 'Mensajes', 3),
-              _buildNavBarItem(Icons.person, 'Perfil', 4),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavBarItem(IconData icon, String label, int index) {
-    final isSelected = _selectedIndex == index;
-    return InkWell(
-      onTap: () => _onNavBarTap(index),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? const Color(0xFFF5501D) : Colors.grey[400],
-              size: 26,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: isSelected ? const Color(0xFFF5501D) : Colors.grey[400],
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddButton() {
-    return InkWell(
-      onTap: () => _onNavBarTap(2),
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5501D),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFF5501D).withOpacity(0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
     );
   }

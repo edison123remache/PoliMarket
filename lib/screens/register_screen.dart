@@ -163,7 +163,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Correo ESPOCH',
+                    labelText: 'Correo institucional',
                     labelStyle: TextStyle(color: Color(0xFFF6511E)),
                     prefixIcon: Icon(Icons.email, color: Color(0xFFF6511E)),
                     enabledBorder: OutlineInputBorder(
@@ -237,7 +237,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _confirmPasswordController,
                   decoration: InputDecoration(
-                    labelText: 'Confirmar Contraseña',
+                    labelText: 'Confirmar contraseña',
                     labelStyle: const TextStyle(color: Color(0xFFF6511E)),
                     prefixIcon: const Icon(
                       Icons.lock_outline,

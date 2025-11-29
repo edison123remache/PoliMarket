@@ -9,4 +9,3 @@ class App extends StatelessWidget {
     return const MaterialApp(title: 'PoliMarket', home: AuthWrapper());
   }
 }
-

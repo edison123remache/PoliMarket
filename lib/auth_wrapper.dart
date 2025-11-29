@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:randimarket/screens/main_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import './screens/login_screen.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -31,7 +31,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           final session = authState.session;
 
           if (session != null) {
-            return const HomeScreen();
+            return const MainScreen();
           }
         }
 

@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import '/screens/chat_list_screen.dart';
-import 'info_servicio.dart';
+import './info_servicio.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() {
+    return _HomeScreenState();
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
-  int _selectedIndex = 0;
   List<Map<String, dynamic>> _servicios = [];
   bool _isLoading = true;
   String _sortOption = 'Más recientes'; // Opción de ordenamiento actual
@@ -60,15 +60,17 @@ class _HomeScreenState extends State<HomeScreen> {
       } else if (_sortOption == 'Más antiguos') {
         _servicios = _servicios.reversed.toList();
       } else if (_sortOption == 'A-Z') {
-        _servicios.sort((a, b) => (a['titulo'] ?? '')
-            .toString()
-            .toLowerCase()
-            .compareTo((b['titulo'] ?? '').toString().toLowerCase()));
+        _servicios.sort(
+          (a, b) => (a['titulo'] ?? '').toString().toLowerCase().compareTo(
+            (b['titulo'] ?? '').toString().toLowerCase(),
+          ),
+        );
       } else if (_sortOption == 'Z-A') {
-        _servicios.sort((a, b) => (b['titulo'] ?? '')
-            .toString()
-            .toLowerCase()
-            .compareTo((a['titulo'] ?? '').toString().toLowerCase()));
+        _servicios.sort(
+          (a, b) => (b['titulo'] ?? '').toString().toLowerCase().compareTo(
+            (a['titulo'] ?? '').toString().toLowerCase(),
+          ),
+        );
       }
     });
   }
@@ -87,10 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const Text(
                 'Ordenar por',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 20),
               _buildSortOption('Más recientes'),
@@ -138,39 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _onNavBarTap(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        // Ya estamos en Home
-        break;
-      case 1:
-        // Navegar a Calendario
-        debugPrint('Navegar a Calendario');
-        break;
-      case 2:
-        // Navegar a Añadir Publicación
-        Navigator.of(context).pushNamed('/SubirServ');
-        debugPrint('Navegar a Añadir Publicación');
-        break;
-      case 3:
-        // Navegar a Mensajes -> ABRE ChatListScreen
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ChatListScreen()),
-        );
-        break;
-      case 4:
-        // Navegar a Perfil
-        Navigator.of(context).pushNamed('/profile');
-        debugPrint('Navegar a Perfil');
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -202,7 +168,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
@@ -240,8 +205,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   if (value.trim().isEmpty) return;
 
-                  Navigator.pushNamed(context, '/search',
-                      arguments: value.trim());
+                  Navigator.pushNamed(
+                    context,
+                    '/search',
+                    arguments: value.trim(),
+                  );
                   _searchController.clear();
                 },
               ),
@@ -265,11 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.swap_vert,
-                color: Colors.white,
-                size: 24,
-              ),
+              child: const Icon(Icons.swap_vert, color: Colors.white, size: 24),
             ),
           ),
         ],
@@ -406,33 +370,32 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               )
             : _servicios.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(40.0),
-                      child: Text(
-                        'No hay servicios disponibles',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: 0.85,
-                      ),
-                      itemCount: _servicios.length,
-                      itemBuilder: (context, index) {
-                        return _buildServiceCard(_servicios[index]);
-                      },
-                    ),
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40.0),
+                  child: Text(
+                    'No hay servicios disponibles',
+                    style: TextStyle(color: Colors.grey[600]),
                   ),
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.85,
+                  ),
+                  itemCount: _servicios.length,
+                  itemBuilder: (context, index) {
+                    return _buildServiceCard(_servicios[index]);
+                  },
+                ),
+              ),
         const SizedBox(height: 20),
       ],
     );
@@ -444,8 +407,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final String imageUrl = fotos.isNotEmpty ? fotos[0] : '';
 
     // Acortar título si es muy largo
-    final String displayTitle =
-        titulo.length > 25 ? '${titulo.substring(0, 22)}...' : titulo;
+    final String displayTitle = titulo.length > 25
+        ? '${titulo.substring(0, 22)}...'
+        : titulo;
 
     return GestureDetector(
       onTap: () {
@@ -526,88 +490,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildNavBarItem(Icons.home, 'Home', 0),
-              _buildNavBarItem(Icons.calendar_today, 'Agenda', 1),
-              _buildAddButton(),
-              _buildNavBarItem(Icons.message, 'Mensajes', 3),
-              _buildNavBarItem(Icons.person, 'Perfil', 4),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavBarItem(IconData icon, String label, int index) {
-    final isSelected = _selectedIndex == index;
-    return InkWell(
-      onTap: () => _onNavBarTap(index),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? const Color(0xFFF5501D) : Colors.grey[400],
-              size: 26,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: isSelected ? const Color(0xFFF5501D) : Colors.grey[400],
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddButton() {
-    return InkWell(
-      onTap: () => _onNavBarTap(2),
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5501D),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFF5501D).withOpacity(0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
     );
   }
