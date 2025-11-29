@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:poli_market/screens/register_screen.dart';
-import 'package:poli_market/screens/reset_password_dialog.dart';
+import 'package:llama_market/screens/register_screen.dart';
+import 'package:llama_market/screens/reset_password_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
@@ -122,15 +122,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _emailController,
                   decoration: const InputDecoration(
                     labelText: 'Ingrese su Correo ESPOCH',
-                    labelStyle: const TextStyle(color: Color(0xFFF6511E)),
-                    prefixIcon: const Icon(
-                      Icons.email,
-                      color: Color(0xFFF6511E),
-                    ),
-                    enabledBorder: const OutlineInputBorder(
+                    labelStyle: TextStyle(color: Color(0xFFF6511E)),
+                    prefixIcon: Icon(Icons.email, color: Color(0xFFF6511E)),
+                    enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(color: Color(0xFFF6511E)),
                     ),
-                    focusedBorder: const OutlineInputBorder(
+                    focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                         color: Color(0xFFF6511E),
                         width: 2.0,

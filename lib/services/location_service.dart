@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class LocationServiceIQ {
   static late String _apiKey;
@@ -58,8 +57,9 @@ class LocationServiceIQ {
         String state = address['state'] ?? '';
 
         List<String> addressParts = [];
-        if (street.isNotEmpty)
+        if (street.isNotEmpty) {
           addressParts.add('$street${number.isNotEmpty ? " $number" : ""}');
+        }
         if (neighborhood.isNotEmpty) addressParts.add(neighborhood);
         if (city.isNotEmpty) addressParts.add(city);
         if (state.isNotEmpty) addressParts.add(state);
