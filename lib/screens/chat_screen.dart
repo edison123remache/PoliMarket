@@ -5,7 +5,7 @@ import 'dart:convert';
 import '../services/chat_service.dart';
 import 'propuesta_encuentro_screen.dart';
 import 'profile_screen.dart';
-import '../widgets/cita_message_bubble.dart';
+import 'cita_detail_screen.dart';
 import 'info_servicio.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -72,13 +72,13 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty || user == null) return;
 
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-    final ahoraUtc = DateTime.now().toUtc().toIso8601String();
+final ahoraLocal = DateTime.now().toIso8601String();
 
     final optimisticMessage = {
       'id': tempId,
       'remitente_id': user!.id,
       'contenido': text,
-      'creado_en': ahoraUtc,
+      'creado_en': ahoraLocal,
       '_is_optimistic': true,
     };
 
@@ -119,14 +119,22 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  DateTime _parseCreatedEn(dynamic value) {
-    try {
-      if (value == null) return DateTime.fromMillisecondsSinceEpoch(0).toUtc();
-      if (value is DateTime) return value.toUtc();
-      if (value is String) return DateTime.parse(value).toUtc();
-    } catch (_) {}
-    return DateTime.fromMillisecondsSinceEpoch(0).toUtc();
-  }
+DateTime _parseCreatedEn(dynamic value) {
+  try {
+    if (value == null) return DateTime.now();
+
+    if (value is DateTime) {
+      return value.toLocal(); // ✅ CONVERTIR A LOCAL
+    }
+
+    if (value is String) {
+      return DateTime.parse(value).toLocal(); // ✅ CONVERTIR A LOCAL
+    }
+  } catch (_) {}
+
+  return DateTime.now();
+}
+
 
   String _formatHourFromCreated(dynamic createdEn) {
     try {
@@ -200,17 +208,14 @@ class _ChatScreenState extends State<ChatScreen> {
     final String nombre = _otherProfile?['nombre'] ?? 'Cargando...';
     final String? avatarUrl = _otherProfile?['avatar_url'];
 
-    // ✅ LÓGICA CORRECTA:
-    // Si vendedorId es null, usamos fallback (asumir que quien tiene servicioTitulo es vendedor)
     final bool soyVendedor = widget.vendedorId != null
         ? widget.vendedorId == user?.id
-        : false; // Si no hay vendedorId, no mostrar botón
+        : false; 
 
     final bool otroEsVendedor = widget.vendedorId != null
         ? widget.vendedorId == widget.otherUserId
         : widget.servicioTitulo != null; // Fallback
 
-    // 🔍 DEBUG en el build
     debugPrint('🔍 soyVendedor: $soyVendedor');
     debugPrint('🔍 otroEsVendedor: $otroEsVendedor');
 

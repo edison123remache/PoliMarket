@@ -20,12 +20,15 @@ dependencies:
   geolocator: ^9.0.2
   cached_network_image: ^3.3.0
   rxdart: ^0.27.7
+  onesignal_flutter: ^5.3.4
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+
+
 
 flutter:
   uses-material-design: true

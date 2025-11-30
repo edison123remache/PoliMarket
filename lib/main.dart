@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Randimarket',
+      title: 'LlamaMarket',
       theme: ThemeData(
         primarySwatch: Colors.orange,
         visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -73,6 +73,7 @@ class MyApp extends StatelessWidget {
         '/search': (context) => const SearchScreen(), 
         '/home' : (context) => const HomeScreen(),
         '/chatList': (context) => const ChatListScreen(),
+
       },
 
       debugShowCheckedModeBanner: false,

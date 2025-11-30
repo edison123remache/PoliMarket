@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import './info_servicio.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,6 +23,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadServicios();
+    // No hacemos initState async; llamamos a la función async sin await
+    savePlayerId();
   }
 
   Future<void> _loadServicios() async {
@@ -52,6 +55,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
     await _loadServicios();
   }
+
+  // --------- Guardar Onesignal player id -----------
+Future<void> savePlayerId() async {
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    // API nueva de OneSignal v5
+    final String? playerId = OneSignal.User.pushSubscription.id;
+
+    if (playerId == null || playerId.isEmpty) {
+      debugPrint('OneSignal: playerId todavía no disponible');
+      return;
+    }
+
+    await Supabase.instance.client
+        .from('perfiles')
+        .update({'onesignal_id': playerId})
+        .eq('id', user.id);
+
+    debugPrint('OneSignal: playerId guardado -> $playerId');
+  } catch (e) {
+    debugPrint('Error guardando playerId: $e');
+  }
+}
+
 
   void _applySorting() {
     setState(() {
