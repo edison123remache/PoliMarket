@@ -72,7 +72,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty || user == null) return;
 
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-final ahoraLocal = DateTime.now().toIso8601String();
+    final ahoraLocal = DateTime.now().toIso8601String();
 
     final optimisticMessage = {
       'id': tempId,
@@ -119,22 +119,21 @@ final ahoraLocal = DateTime.now().toIso8601String();
     });
   }
 
-DateTime _parseCreatedEn(dynamic value) {
-  try {
-    if (value == null) return DateTime.now();
+  DateTime _parseCreatedEn(dynamic value) {
+    try {
+      if (value == null) return DateTime.now();
 
-    if (value is DateTime) {
-      return value.toLocal(); // ✅ CONVERTIR A LOCAL
-    }
+      if (value is DateTime) {
+        return value.toLocal(); // ✅ CONVERTIR A LOCAL
+      }
 
-    if (value is String) {
-      return DateTime.parse(value).toLocal(); // ✅ CONVERTIR A LOCAL
-    }
-  } catch (_) {}
+      if (value is String) {
+        return DateTime.parse(value).toLocal(); // ✅ CONVERTIR A LOCAL
+      }
+    } catch (_) {}
 
-  return DateTime.now();
-}
-
+    return DateTime.now();
+  }
 
   String _formatHourFromCreated(dynamic createdEn) {
     try {
@@ -210,7 +209,7 @@ DateTime _parseCreatedEn(dynamic value) {
 
     final bool soyVendedor = widget.vendedorId != null
         ? widget.vendedorId == user?.id
-        : false; 
+        : false;
 
     final bool otroEsVendedor = widget.vendedorId != null
         ? widget.vendedorId == widget.otherUserId

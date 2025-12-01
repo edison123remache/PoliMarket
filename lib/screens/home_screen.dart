@@ -57,30 +57,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // --------- Guardar Onesignal player id -----------
-Future<void> savePlayerId() async {
-  try {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+  Future<void> savePlayerId() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
 
-    // API nueva de OneSignal v5
-    final String? playerId = OneSignal.User.pushSubscription.id;
-
-    if (playerId == null || playerId.isEmpty) {
-      debugPrint('OneSignal: playerId todavía no disponible');
-      return;
+      await OneSignal.login(user.id);
+    } catch (e) {
+      debugPrint('Error guardando playerId: $e');
     }
-
-    await Supabase.instance.client
-        .from('perfiles')
-        .update({'onesignal_id': playerId})
-        .eq('id', user.id);
-
-    debugPrint('OneSignal: playerId guardado -> $playerId');
-  } catch (e) {
-    debugPrint('Error guardando playerId: $e');
   }
-}
-
 
   void _applySorting() {
     setState(() {

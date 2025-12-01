@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:randimarket/screens/home_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,10 +13,11 @@ import 'screens/subir_servicio_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/chat_list_screen.dart';
 
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  OneSignal.initialize("4cef4c15-0cd4-46eb-939e-8eecfee710b8");
+   await OneSignal.Notifications.requestPermission(false);
 
   // ✅ Inicializar formatos de fecha
   await initializeDateFormatting('es_ES', null);
@@ -57,7 +59,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LlamaMarket',
+      title: 'Randimarket',
       theme: ThemeData(
         primarySwatch: Colors.orange,
         visualDensity: VisualDensity.adaptivePlatformDensity,

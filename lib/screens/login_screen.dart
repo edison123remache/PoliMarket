@@ -24,9 +24,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void _login() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-
     try {
+      setState(() => _isLoading = true);
+
       await _authService.signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -37,7 +37,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (error) {
       _showErrorDialog('Error inesperado: $error');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
