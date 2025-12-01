@@ -33,38 +33,37 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
     _cargarDatos();
   }
 
-  Future<void> _cargarDatos() async {
-    try {
-      // Cargar datos del servicio
-      final servicioData = await _supabase
-          .from('servicios')
-          .select()
-          .eq('id', widget.servicioId)
-          .single();
+Future<void> _cargarDatos() async {
+  try {
+    final servicioData = await _supabase
+        .from('servicios')
+        .select()
+        .eq('id', widget.servicioId)
+        .single();
 
-      // Cargar datos del vendedor
-      final vendedorData = await _supabase
-          .from('perfiles')
-          .select()
-          .eq('id', servicioData['user_id'])
-          .single();
+    final vendedorData = await _supabase
+        .from('perfiles')
+        .select()
+        .eq('id', servicioData['user_id'])
+        .single();
 
-      // Cargar mapa estático
-      final mapaUrl = await MapService.getStaticMapForAddress(
-        servicioData['ubicacion'],
-      );
+    final mapaUrl = await MapService.getStaticMapForAddress(
+      servicioData['ubicacion'],
+    );
 
-      setState(() {
-        _servicio = servicioData;
-        _vendedor = UserModel.fromJson(vendedorData);
-        _mapaUrl = mapaUrl;
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error cargando datos: $e');
-      setState(() => _isLoading = false);
-    }
+    if (!mounted) return; // <--- Esto evita el error
+    setState(() {
+      _servicio = servicioData;
+      _vendedor = UserModel.fromJson(vendedorData);
+      _mapaUrl = mapaUrl;
+      _isLoading = false;
+    });
+  } catch (e) {
+    debugPrint('Error cargando datos: $e');
+    if (!mounted) return;
+    setState(() => _isLoading = false);
   }
+}
 
   // ----------------- CHAT -----------------
 Future<void> _contactarVendedor() async {
@@ -549,32 +548,36 @@ class __ReporteDialogState extends State<_ReporteDialog> {
     'Esta publicación contiene Desnudos o Actividad sexual',
   ];
 
-  Future<void> _enviarReporte() async {
-    if (_razonSeleccionada == null) return;
+Future<void> _enviarReporte() async {
+  if (_razonSeleccionada == null) return;
 
-    setState(() => _enviandoReporte = true);
+  if (!mounted) return;
+  setState(() => _enviandoReporte = true);
 
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('Usuario no autenticado');
+  try {
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('Usuario no autenticado');
 
-      await _supabase.from('reportes').insert({
-        'reporter_id': user.id,
-        'service_id': widget.servicioId,
-        'razones': _razonSeleccionada,
-        'status': 'pendiente',
-      });
+    await _supabase.from('reportes').insert({
+      'reporter_id': user.id,
+      'service_id': widget.servicioId,
+      'razones': _razonSeleccionada,
+      'status': 'pendiente',
+    });
 
-      widget.onReportado();
-      Navigator.pop(context);
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al enviar reporte: $e')));
-    } finally {
-      setState(() => _enviandoReporte = false);
-    }
+    if (!mounted) return;
+    widget.onReportado();
+    Navigator.pop(context);
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Error al enviar reporte: $e')));
+  } finally {
+    if (!mounted) return;
+    setState(() => _enviandoReporte = false);
   }
+}
+
 
   @override
   Widget build(BuildContext context) {

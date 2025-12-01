@@ -86,22 +86,24 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
     }
 
     try {
-      final selectedImages = await _picker.pickMultiImage(
+      final List<XFile> selectedImages = await _picker.pickMultiImage(
         maxWidth: 1200,
         maxHeight: 1200,
         imageQuality: 80,
       );
 
-      int availableSlots = 3 - _fotos.length;
-      int imagesToAdd = selectedImages.length > availableSlots
-          ? availableSlots
-          : selectedImages.length;
+      if (selectedImages != null) {
+        int availableSlots = 3 - _fotos.length;
+        int imagesToAdd = selectedImages.length > availableSlots
+            ? availableSlots
+            : selectedImages.length;
 
-      for (int i = 0; i < imagesToAdd; i++) {
-        _fotos.add(File(selectedImages[i].path));
+        for (int i = 0; i < imagesToAdd; i++) {
+          _fotos.add(File(selectedImages[i].path));
+        }
+
+        setState(() {});
       }
-
-      setState(() {});
     } catch (e) {
       _mostrarError('Error al seleccionar imágenes: $e');
     }
@@ -246,11 +248,7 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Subir Post'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text('Subir Post')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildForm(),
@@ -622,11 +620,11 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
           child: ElevatedButton(
             onPressed: _guardarServicio,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor: Colors.deepOrange,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
-            child: const Text('Guardar', style: TextStyle(fontSize: 16)),
+            child: const Text('Subir', style: TextStyle(fontSize: 16)),
           ),
         ),
         const SizedBox(width: 16),

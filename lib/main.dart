@@ -23,15 +23,9 @@ void main() async {
   await initializeDateFormatting('es_ES', null);
 
   // ✅ Inicializar Supabase
-  const String supabaseUrl =
-      'https://engsrmatiagwggnphlgu.supabase.co';
-  const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZ3NybWF0aWFnd2dnbnBobGd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MTc1NjIsImV4cCI6MjA3NzA5MzU2Mn0.82f5h2SS-lhyyHKoO1POVvOwh1d6k6lqhw0Hjv11iy0';
-
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
+  String supabaseUrl = 'https://engsrmatiagwggnphlgu.supabase.co';
+  String supabaseAnonKey ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZ3NybWF0aWFnd2dnbnBobGd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1MTc1NjIsImV4cCI6MjA3NzA5MzU2Mn0.82f5h2SS-lhyyHKoO1POVvOwh1d6k6lqhw0Hjv11iy0';
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey, );
 
   // ✅ Servicios de ubicación
   const String locationIQApiKey =
