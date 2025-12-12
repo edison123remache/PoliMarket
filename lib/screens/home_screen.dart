@@ -230,27 +230,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          // Botón de ordenar
-          GestureDetector(
-            onTap: _showSortOptions,
-            child: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: const Color(0xFFB89968),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.swap_vert, color: Colors.white, size: 24),
-            ),
-          ),
         ],
       ),
     );
@@ -262,17 +241,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<Map<String, String>> banners = [
       {
         'title':
-            'Explora una nueva dimensión de\noportunidades en tu área de interés.',
+            'Explora una nueva dimensión de\n oportunidades en tu área de interés.',
         'image':
             'https://images.unsplash.com/photo-1557683316-973673baf926?w=600',
       },
       {
-        'title': '¿En serio alguien lee esto?',
+        'title':
+            'Apoya nuevos e interesantes emprendimientos de la comunidad politecnica',
         'image':
             'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600',
       },
       {
-        'title': 'Odio mi vida',
+        'title': 'El lugar indicado para encontrar el alcance que necesitas!',
         'image':
             'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600',
       },

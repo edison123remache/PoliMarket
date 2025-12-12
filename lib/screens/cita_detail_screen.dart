@@ -33,7 +33,9 @@ class CitaMessageBubble extends StatelessWidget {
     return Align(
       alignment: esPropietario ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.8,
+        ),
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
         decoration: BoxDecoration(
           color: Colors.orange.shade50,
@@ -51,7 +53,10 @@ class CitaMessageBubble extends StatelessWidget {
                 SizedBox(width: 6),
                 Text(
                   'Punto de Encuentro',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
                 ),
               ],
             ),
@@ -63,23 +68,36 @@ class CitaMessageBubble extends StatelessWidget {
             Text('Ubicación: $ubicacion', style: const TextStyle(fontSize: 15)),
             if (detalles.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text('Detalles: $detalles', style: const TextStyle(fontSize: 14, color: Colors.black87)),
+              Text(
+                'Detalles: $detalles',
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
+              ),
             ],
             const SizedBox(height: 10),
 
             // Estado
             Row(
               children: [
-                const Text('Estado: ', style: TextStyle(fontWeight: FontWeight.w500)),
+                const Text(
+                  'Estado: ',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: colorEstado,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     textoEstado,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
@@ -97,24 +115,36 @@ class CitaMessageBubble extends StatelessWidget {
                       side: const BorderSide(color: Colors.red),
                     ),
                     onPressed: () async {
-                      await ChatService.instance.actualizarEstadoCitaCompleto(cita['id'], 'rechazada');
+                      await ChatService.instance.actualizarEstadoCitaCompleto(
+                        cita['id'],
+                        'rechazada',
+                      );
                     },
                     child: const Text('Negar'),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                    ),
                     onPressed: () async {
-                      await ChatService.instance.actualizarEstadoCitaCompleto(cita['id'], 'aceptada');
+                      await ChatService.instance.actualizarEstadoCitaCompleto(
+                        cita['id'],
+                        'aceptada',
+                      );
                     },
-                    child: const Text('Aceptar', style: TextStyle(color: Colors.white)),
+                    child: const Text(
+                      'Aceptar',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               ),
             ],
 
             // Mensaje final solo para el que propuso (cuando ya fue respondida)
-            if ((estado == 'aceptada' || estado == 'rechazada') && esPropietario)
+            if ((estado == 'aceptada' || estado == 'rechazada') &&
+                esPropietario)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: Text(

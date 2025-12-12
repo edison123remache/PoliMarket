@@ -8,6 +8,8 @@ import '../services/vista_mapa.dart';
 import '../services/chat_service.dart';
 import '../screens/chat_screen.dart';
 
+import 'profile_screen.dart';
+
 class DetalleServicioScreen extends StatefulWidget {
   final String servicioId;
 
@@ -35,25 +37,23 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
 
   Future<void> _cargarDatos() async {
     try {
-      // Cargar datos del servicio
       final servicioData = await _supabase
           .from('servicios')
           .select()
           .eq('id', widget.servicioId)
           .single();
 
-      // Cargar datos del vendedor
       final vendedorData = await _supabase
           .from('perfiles')
           .select()
           .eq('id', servicioData['user_id'])
           .single();
 
-      // Cargar mapa estático
       final mapaUrl = await MapService.getStaticMapForAddress(
         servicioData['ubicacion'],
       );
 
+      if (!mounted) return;
       setState(() {
         _servicio = servicioData;
         _vendedor = UserModel.fromJson(vendedorData);
@@ -62,57 +62,57 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
       });
     } catch (e) {
       debugPrint('Error cargando datos: $e');
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
 
   // ----------------- CHAT -----------------
-Future<void> _contactarVendedor() async {
-  final currentUser = _authService.currentUser;
-  if (currentUser == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Debes iniciar sesión")),
-    );
-    return;
-  }
+  Future<void> _contactarVendedor() async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Debes iniciar sesión")));
+      return;
+    }
 
-  final vendedorId = _servicio!['user_id'];
-  if (currentUser.id == vendedorId) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("No puedes chatear contigo mismo")),
-    );
-    return;
-  }
+    final vendedorId = _servicio!['user_id'];
+    if (currentUser.id == vendedorId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No puedes chatear contigo mismo")),
+      );
+      return;
+    }
 
-  try {
-    final chatId = await ChatService.instance.getOrCreateChat(
-      user1Id: currentUser.id,
-      user2Id: vendedorId,
-      serviceId: widget.servicioId, 
-    );
+    try {
+      final chatId = await ChatService.instance.getOrCreateChat(
+        user1Id: currentUser.id,
+        user2Id: vendedorId,
+        serviceId: widget.servicioId,
+      );
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChatScreen(
-          chatId: chatId,
-          otherUserId: vendedorId,
-          servicioId: _servicio!['id'], 
-          servicioTitulo: _servicio!['titulo'],
-          servicioPrecio: _servicio!['precio'].toString(),
-          servicioFotoUrl: (_servicio!['fotos'] as List).isNotEmpty
-              ? (_servicio!['fotos'] as List).first
-              : null,
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            chatId: chatId,
+            otherUserId: vendedorId,
+            servicioId: _servicio!['id'],
+            servicioTitulo: _servicio!['titulo'],
+            servicioPrecio: _servicio!['precio'].toString(),
+            servicioFotoUrl: (_servicio!['fotos'] as List).isNotEmpty
+                ? (_servicio!['fotos'] as List).first
+                : null,
+          ),
         ),
-      ),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error al iniciar chat: $e")),
-    );
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error al iniciar chat: $e")));
+    }
   }
-}
-
 
   // ----------------- MENÚ OPCIONES -----------------
   void _mostrarMenuOpciones() {
@@ -153,7 +153,7 @@ Future<void> _contactarVendedor() async {
               _buildOpcionMenu(
                 icon: Icons.report,
                 texto: 'Reportar publicación',
-                color: Colors.orange,
+                color: Colors.red,
                 onTap: _mostrarReporteDialog,
               ),
             const SizedBox(height: 8),
@@ -249,7 +249,9 @@ Future<void> _contactarVendedor() async {
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF6B35)),
+        ),
       );
     }
 
@@ -303,7 +305,7 @@ Future<void> _contactarVendedor() async {
                       onPressed: _contactarVendedor,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.blue,
+                        backgroundColor: const Color(0xFFF5501D),
                         foregroundColor: Colors.white,
                       ),
                       child: const Text(
@@ -358,7 +360,9 @@ Future<void> _contactarVendedor() async {
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
                   color: Colors.grey[200],
-                  child: const Center(child: CircularProgressIndicator()),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFFF6B35)),
+                  ),
                 ),
                 errorWidget: (context, url, error) => Container(
                   color: Colors.grey[200],
@@ -382,7 +386,7 @@ Future<void> _contactarVendedor() async {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _currentImageIndex == i
-                      ? Colors.blue
+                      ? const Color(0xFFF5501D)
                       : Colors.grey[400],
                 ),
               ),
@@ -419,7 +423,16 @@ Future<void> _contactarVendedor() async {
         ),
         const SizedBox(height: 12),
         GestureDetector(
-          onTap: () {},
+          onTap: () {
+            if (_authService.currentUser?.id != _vendedor!.id) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfileScreen(userId: _vendedor!.id),
+                ),
+              );
+            }
+          },
           child: Row(
             children: [
               CircleAvatar(
@@ -552,6 +565,7 @@ class __ReporteDialogState extends State<_ReporteDialog> {
   Future<void> _enviarReporte() async {
     if (_razonSeleccionada == null) return;
 
+    if (!mounted) return;
     setState(() => _enviandoReporte = true);
 
     try {
@@ -565,13 +579,16 @@ class __ReporteDialogState extends State<_ReporteDialog> {
         'status': 'pendiente',
       });
 
+      if (!mounted) return;
       widget.onReportado();
       Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error al enviar reporte: $e')));
     } finally {
+      if (!mounted) return;
       setState(() => _enviandoReporte = false);
     }
   }
@@ -602,7 +619,7 @@ class __ReporteDialogState extends State<_ReporteDialog> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Icon(Icons.report, color: Colors.orange),
+                const Icon(Icons.report, color: const Color(0xFFF5501D)),
                 const SizedBox(width: 8),
                 const Text(
                   'Reportar publicación',
@@ -611,22 +628,22 @@ class __ReporteDialogState extends State<_ReporteDialog> {
               ],
             ),
           ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: _razones.map((razon) {
-                return RadioListTile<String>(
-                  title: Text(razon),
-                  value: razon,
-                  groupValue: _razonSeleccionada,
-                  onChanged: (value) {
-                    setState(() {
-                      _razonSeleccionada = value;
-                    });
-                  },
-                );
-              }).toList(),
-            ),
+          ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: _razones.map((razon) {
+              return RadioListTile<String>(
+                title: Text(razon),
+                value: razon,
+                groupValue: _razonSeleccionada,
+                activeColor: const Color(0xFFF5501D),
+                onChanged: (value) {
+                  setState(() {
+                    _razonSeleccionada = value;
+                  });
+                },
+              );
+            }).toList(),
           ),
           Padding(
             padding: const EdgeInsets.all(16),
@@ -641,12 +658,18 @@ class __ReporteDialogState extends State<_ReporteDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF5501D),
+                      foregroundColor: Colors.white,
+                    ),
                     onPressed: _razonSeleccionada != null && !_enviandoReporte
                         ? _enviarReporte
                         : null,
                     child: _enviandoReporte
                         ? const CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2)
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          )
                         : const Text('Enviar'),
                   ),
                 ),

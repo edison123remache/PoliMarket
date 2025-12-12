@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:randimarket/screens/chat_list_screen.dart';
 import 'package:randimarket/screens/home_screen.dart';
 import 'package:randimarket/screens/profile_screen.dart';
+import 'package:randimarket/screens/cita_screen.dart';
 
 //...
 class MainScreen extends StatefulWidget {
@@ -26,8 +27,8 @@ class _MainScreenState extends State<MainScreen> {
     {
       'icon': Icons.calendar_today,
       'label': 'Agenda',
-      'path': '/schedule',
-      'content': SizedBox.shrink(), //caja vacia
+      'path': '/citaList',
+      'content': AgendaScreen(),
     },
     {
       'icon': Icons.message,

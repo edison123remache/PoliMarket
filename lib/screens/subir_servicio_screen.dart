@@ -86,22 +86,24 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
     }
 
     try {
-      final selectedImages = await _picker.pickMultiImage(
+      final List<XFile> selectedImages = await _picker.pickMultiImage(
         maxWidth: 1200,
         maxHeight: 1200,
         imageQuality: 80,
       );
 
-      int availableSlots = 3 - _fotos.length;
-      int imagesToAdd = selectedImages.length > availableSlots
-          ? availableSlots
-          : selectedImages.length;
+      if (selectedImages != null) {
+        int availableSlots = 3 - _fotos.length;
+        int imagesToAdd = selectedImages.length > availableSlots
+            ? availableSlots
+            : selectedImages.length;
 
-      for (int i = 0; i < imagesToAdd; i++) {
-        _fotos.add(File(selectedImages[i].path));
+        for (int i = 0; i < imagesToAdd; i++) {
+          _fotos.add(File(selectedImages[i].path));
+        }
+
+        setState(() {});
       }
-
-      setState(() {});
     } catch (e) {
       _mostrarError('Error al seleccionar imágenes: $e');
     }
@@ -214,16 +216,35 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
       if (user == null) throw Exception('Usuario no autenticado');
 
       // 3. Insertar servicio en la base de datos
-      await supabase.from('servicios').insert({
-        'user_id': user.id,
-        'titulo': _tituloController.text.trim(),
-        'descripcion': _descripcionController.text.trim(),
-        'ubicacion': _ubicacionController.text.trim(),
-        'fotos': fotoUrls,
-        'status': 'activa',
-        'numero_de_reportes': 0,
-      });
+      final servicio = await supabase
+          .from('servicios')
+          .insert({
+            'user_id': user.id,
+            'titulo': _tituloController.text.trim(),
+            'descripcion': _descripcionController.text.trim(),
+            'ubicacion': _ubicacionController.text.trim(),
+            'fotos': fotoUrls,
+            'status': 'pendiente',
+            'numero_de_reportes': 0,
+          })
+          .select("id")
+          .single();
 
+      final res = await supabase.functions.invoke(
+        'notificar-servicio',
+        body: {'service_id': servicio['id']},
+      );
+
+      debugPrint(res.toString());
+
+      // 4. Mostrar mensaje de éxito y regresar
+      _mostrarExito(
+        'Tu publicación ha sido enviada para revisión. '
+        'Será aprobada por un administrador pronto.',
+      );
+
+      // Esperar un momento antes de regresar
+      await Future.delayed(const Duration(seconds: 2));
       // 4. Éxito - regresar
       Navigator.pop(context);
     } catch (e) {
@@ -231,6 +252,16 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _mostrarExito(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   void _mostrarError(String mensaje) {
@@ -246,11 +277,7 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Subir Post'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text('Subir Post')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildForm(),
@@ -622,11 +649,11 @@ class _SubirServicioScreenState extends State<SubirServicioScreen> {
           child: ElevatedButton(
             onPressed: _guardarServicio,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor: Colors.deepOrange,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
-            child: const Text('Guardar', style: TextStyle(fontSize: 16)),
+            child: const Text('Subir', style: TextStyle(fontSize: 16)),
           ),
         ),
         const SizedBox(width: 16),

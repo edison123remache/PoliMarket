@@ -8,7 +8,7 @@ class ChatService {
   final SupabaseClient supabase = Supabase.instance.client;
 
   // ===========================================================
-  // ðŸ”¹ Obtener o crear un chat
+  // 🔹 Obtener o crear un chat
   // ===========================================================
   Future<String> getOrCreateChat({
     required String user1Id,
@@ -20,19 +20,16 @@ class ChatService {
 
     var query = supabase.from('chats').select().or(condition);
 
-    // âœ… FILTRAR POR SERVICIO SI EXISTE
     if (serviceId != null) {
       query = query.eq('service_id', serviceId.toString());
     }
 
     final existing = await query.limit(1);
 
-    // âœ… SI YA EXISTE CHAT â†’ USARLO
     if (existing.isNotEmpty) {
       return existing.first['id'].toString();
     }
 
-    // âœ… SI NO EXISTE â†’ CREAR NUEVO
     final inserted = await supabase
         .from('chats')
         .insert({
@@ -48,78 +45,125 @@ class ChatService {
   }
 
   // ===========================================================
-  // ðŸ”¹ Enviar mensaje + actualizar chat
+  // 🔹 Enviar mensaje + actualizar chat
   // ===========================================================
   Future<Map<String, dynamic>> sendMessage({
     required String chatId,
     required String senderId,
     required String text,
   }) async {
-    final res = await supabase
-        .from('mensajes')
-        .insert({
-          'chat_id': chatId,
-          'remitente_id': senderId,
-          'contenido': {'text': text},
-          'creado_en': DateTime.now().toUtc().toIso8601String(),
-        })
-        .select()
-        .single();
+    try {
+      final res = await supabase
+          .from('mensajes')
+          .insert({
+            'chat_id': chatId,
+            'remitente_id': senderId,
+            'contenido': {'text': text},
+            'creado_en': DateTime.now().toUtc().toIso8601String(),
+          })
+          .select()
+          .single();
 
-    await supabase
-        .from('chats')
-        .update({
-          'ultimo_mensaje': text,
-          'ultimo_mensaje_en': DateTime.now().toUtc().toIso8601String(),
-        })
-        .eq('id', chatId);
+      await supabase
+          .from('chats')
+          .update({
+            'ultimo_mensaje': text,
+            'ultimo_mensaje_en': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', chatId);
 
-    final data = await supabase
-        .from('chats')
-        .select('user1_id, user2_id')
-        .eq('id', chatId)
-        .maybeSingle();
+final data = await supabase
+    .from('chats')
+    .select('user1_id, user2_id')
+    .eq('id', chatId)
+    .maybeSingle();
 
-    if (data == null) return {};
+// Si no hay chat, salir
+if (data == null || data.isEmpty) return {};
 
-    final ids = [data['user1_id'] as String, data['user2_id'] as String];
+// Convertir de forma segura a Map<String, dynamic>
+final chatData = Map<String, dynamic>.from(data);
 
-    final recipientId = ids[0] == senderId ? ids[1] : ids[0];
+// Obtener IDs de manera segura
+final user1 = chatData['user1_id']?.toString();
+final user2 = chatData['user2_id']?.toString();
 
-    final response =await supabase.functions.invoke(
-      'send-notification',
-      body: {'user_id': recipientId, 'content': text},
-    );
+// Verificar que no sean nulos
+if (user1 == null || user2 == null) return {};
 
-    debugPrint(response.toString());
+// Elegir destinatario
+final recipientId = user1 == senderId ? user2 : user1;
 
-    return Map<String, dynamic>.from(res);
+
+      final response = await supabase.functions.invoke(
+        'send-notification',
+        body: {'user_id': recipientId, 'content': text},
+      );
+
+      debugPrint(response.toString());
+
+      return Map<String, dynamic>.from(res);
+    } catch (e) {
+      debugPrint('Error enviando mensaje: $e');
+      return {};
+    }
   }
 
   // ===========================================================
-  // ðŸ”¹ Stream de mensajes en tiempo real
+  // 🔹 Stream de mensajes en tiempo real
   // ===========================================================
   Stream<List<Map<String, dynamic>>> subscribeToMessages(String chatId) {
-    return Supabase.instance.client
+    return supabase
         .from('mensajes')
         .stream(primaryKey: ['id'])
         .eq('chat_id', chatId)
-        .order('creado_en')
-        .map((rows) => rows.cast<Map<String, dynamic>>());
+        .map((rows) {
+          final list = rows
+              .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+              .toList();
+
+          list.sort((a, b) {
+            final da = a['creado_en'] != null
+                ? DateTime.parse(a['creado_en'])
+                : DateTime.fromMillisecondsSinceEpoch(0);
+            final db = b['creado_en'] != null
+                ? DateTime.parse(b['creado_en'])
+                : DateTime.fromMillisecondsSinceEpoch(0);
+            return da.compareTo(db);
+          });
+
+          return list;
+        });
   }
 
+  // ===========================================================
+  // 🔹 Obtener mensajes históricos
+  // ===========================================================
   Future<List<Map<String, dynamic>>> getMessages(String chatId) async {
     final res = await supabase
         .from('mensajes')
         .select()
-        .eq('chat_id', chatId)
-        .order('creado_en', ascending: true);
+        .eq('chat_id', chatId);
 
-    return List<Map<String, dynamic>>.from(res);
+    final messages = res
+        .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    messages.sort((a, b) {
+      final da = a['creado_en'] != null
+          ? DateTime.parse(a['creado_en'])
+          : DateTime.fromMillisecondsSinceEpoch(0);
+      final db = b['creado_en'] != null
+          ? DateTime.parse(b['creado_en'])
+          : DateTime.fromMillisecondsSinceEpoch(0);
+      return da.compareTo(db);
+    });
+
+    return messages;
   }
 
   // ===========================================================
-  // ðŸ”¥ðŸ”¥ðŸ”¥ STREAM OPTIMIZADO DE LISTA DE CHATS ðŸ”¥ðŸ”¥ðŸ”¥
+  // 🔹 Stream de lista de chats por usuario
   // ===========================================================
   Stream<List<Map<String, dynamic>>> subscribeToUserChats(String userId) {
     return supabase
@@ -146,11 +190,9 @@ class ChatService {
                   .maybeSingle();
 
               final fotos = serv?['fotos'];
-
               map['servicio_titulo'] = serv?['titulo'];
-              map['servicio_foto_url'] = (fotos is List && fotos.isNotEmpty)
-                  ? fotos[0]
-                  : null;
+              map['servicio_foto_url'] =
+                  (fotos is List && fotos.isNotEmpty) ? fotos[0] : null;
             } else {
               map['servicio_titulo'] = null;
               map['servicio_foto_url'] = null;
@@ -163,11 +205,9 @@ class ChatService {
             final da = a['ultimo_mensaje_en'] != null
                 ? DateTime.parse(a['ultimo_mensaje_en'])
                 : DateTime.fromMillisecondsSinceEpoch(0);
-
             final db = b['ultimo_mensaje_en'] != null
                 ? DateTime.parse(b['ultimo_mensaje_en'])
                 : DateTime.fromMillisecondsSinceEpoch(0);
-
             return db.compareTo(da);
           });
 
@@ -177,7 +217,7 @@ class ChatService {
   }
 
   // ===========================================================
-  // ðŸ”¹ borrar chat
+  // 🔹 Borrar chat
   // ===========================================================
   Future<void> deleteChat(String chatId) async {
     await supabase.from('mensajes').delete().eq('chat_id', chatId);
@@ -186,7 +226,7 @@ class ChatService {
   }
 
   // ===========================================================
-  // ðŸ”¹ Obtener perfil
+  // 🔹 Obtener perfil
   // ===========================================================
   Future<Map<String, dynamic>?> getProfile(String userId) async {
     final res = await supabase
@@ -194,12 +234,11 @@ class ChatService {
         .select()
         .eq('id', userId)
         .maybeSingle();
-
     return res == null ? null : Map<String, dynamic>.from(res);
   }
 
   // ===========================================================
-  // ðŸ”¥ CREAR CITA + MENSAJE
+  // 🔹 Crear cita + mensaje
   // ===========================================================
   Future<Map<String, dynamic>> crearCitaYEnviarMensaje({
     required String chatId,
@@ -256,29 +295,23 @@ class ChatService {
   }
 
   // ===========================================================
-  // ðŸ”¹ Actualizar estado cita
+  // 🔹 Actualizar estado cita
   // ===========================================================
   Future<void> actualizarEstadoCitaCompleto(
-    String citaId,
-    String nuevoEstado,
-  ) async {
-    // 1ï¸âƒ£ Actualiza la tabla citas
+      String citaId, String nuevoEstado) async {
     await supabase
         .from('citas')
         .update({'estado': nuevoEstado})
         .eq('id', citaId);
 
-    // 2ï¸âƒ£ Buscar mensajes usando ->> (EXTRAE TEXTO, NO JSON)
     final mensajes = await supabase
         .from('mensajes')
         .select('id, contenido')
         .filter('contenido->>cita_id', 'eq', citaId.toString());
 
     for (final msg in mensajes) {
-      final Map<String, dynamic> contenido = Map<String, dynamic>.from(
-        msg['contenido'],
-      );
-
+      final Map<String, dynamic> contenido =
+          Map<String, dynamic>.from(msg['contenido']);
       contenido['estado'] = nuevoEstado;
 
       await supabase

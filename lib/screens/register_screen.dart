@@ -66,7 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on AuthException catch (error) {
       _showErrorDialog(error.message);
     } catch (error) {
-      _showErrorDialog('Error inesperado: $error');
+      _showErrorDialog('Error inesperado, Intente nuevamente '); //$error
     } finally {
       setState(() => _isLoading = false);
     }

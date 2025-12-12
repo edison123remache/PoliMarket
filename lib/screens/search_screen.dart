@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:randimarket/screens/info_servicio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:randimarket/screens/info_servicio.dart'; // Verifica esta ruta
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -10,136 +10,110 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  // Variables de estado
   Future<List<Map<String, dynamic>>>? loadDataFuture;
-  String? searchQuery;
+  String searchQuery = '';
+  String _sortOption = 'Más recientes';
 
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-final query = (ModalRoute.of(context)?.settings.arguments as String?)?.trim() ?? '';
+      final initialQuery =
+          (ModalRoute.of(context)?.settings.arguments as String?)?.trim() ?? '';
+
       setState(() {
-        searchQuery = query;
-        loadDataFuture = loadData(query);
+        searchQuery = initialQuery;
+        _searchController.text = initialQuery;
+        loadDataFuture = loadData(initialQuery);
       });
     });
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // --- LÓGICA DE RECARGA (REFRESH) ---
+  Future<void> _handleRefresh() async {
+    setState(() {
+      // Recargamos la data usando el texto actual
+      loadDataFuture = loadData(searchQuery);
+    });
+    await loadDataFuture;
+  }
+
+  // --- LÓGICA DE BÚSQUEDA ---
+  void _applySearchOrSort() {
+    if (searchQuery.isNotEmpty) {
+      setState(() {
+        loadDataFuture = loadData(searchQuery);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // FONDO CON EL DEGRADADO QUE TÚ QUERÍAS
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFF0EC), // Arriba (el que pusiste)
-              Color(0xFFF5F5F5), // Abajo (el que pusiste)
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header naranja del prototipo
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFE0B2), // Naranja clarito exacto del prototipo
-                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Icon(Icons.arrow_back_ios,
-                              color: Colors.black87, size: 20),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          "Resultados de Búsqueda:",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (searchQuery != null && searchQuery!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 28, top: 4),
-                        child: Text(
-                          '"$searchQuery"',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+      // Mismo fondo que tu Home
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- 1. HEADER (Fijo, no scrollea) ---
+            _buildHeader(),
 
-              const SizedBox(height: 16),
-
-              // Resultados o mensaje de "sin coincidencias"
-              loadDataFuture == null
-                  ? const Expanded(
-                      child: Center(child: CircularProgressIndicator()))
-                  : Expanded(
-                      child: FutureBuilder<List<Map<String, dynamic>>>(
+            // --- 2. RESULTADOS (Con RefreshIndicator) ---
+            Expanded(
+              child: RefreshIndicator(
+                color: const Color(0xFFF5501D), // Tu color naranja
+                backgroundColor: Colors.white,
+                onRefresh: _handleRefresh,
+                child: loadDataFuture == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : FutureBuilder<List<Map<String, dynamic>>>(
                         future: loadDataFuture,
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
                             return const Center(
-                                child: CircularProgressIndicator());
+                              child: CircularProgressIndicator(),
+                            );
                           }
 
+                          // Si no hay datos, mostramos mensaje (envuelto en ListView para que funcione el refresh)
                           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.search_off,
-                                      size: 80, color: Colors.grey[400]),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    "No se encontraron resultados",
-                                    style: TextStyle(
-                                        fontSize: 16, color: Colors.grey[600]),
-                                  ),
-                                  Text(
-                                    "Intenta con otra palabra",
-                                    style: TextStyle(
-                                        fontSize: 14, color: Colors.grey[500]),
-                                  ),
-                                ],
-                              ),
+                            return ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.2,
+                                ),
+                                _buildEmptyState(),
+                              ],
                             );
                           }
 
                           final servicios = snapshot.data!;
 
+                          // Si hay datos, mostramos la Grilla
                           return GridView.builder(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
+                            // Esta física es vital para que el Refresh funcione siempre
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.78,
-                            ),
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: 0.78,
+                                ),
                             itemCount: servicios.length,
                             itemBuilder: (context, index) {
                               return buildServiceCard(servicios[index]);
@@ -147,14 +121,246 @@ final query = (ModalRoute.of(context)?.settings.arguments as String?)?.trim() ??
                           );
                         },
                       ),
-                    ),
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  // --- WIDGETS DE UI ---
+
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFF5F5F5), // Color de fondo para que se funda
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Fila superior: Flecha, Barra, Botón Filtro
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 20, 5),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                Expanded(
+                  child: Container(
+                    height: 45,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Buscar...',
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        border: InputBorder.none,
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Colors.grey[600],
+                          size: 20,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                        ),
+                      ),
+                      onSubmitted: (value) {
+                        if (value.trim().isNotEmpty) {
+                          setState(() {
+                            searchQuery = value.trim();
+                          });
+                          _applySearchOrSort();
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: _showSortOptions,
+                  child: Container(
+                    width: 45,
+                    height: 45,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB89968),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.swap_vert,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Título de resultados
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Resultados de Búsqueda:",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                if (searchQuery.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '"$searchQuery"',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            "No se encontraron resultados",
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+          ),
+          Text(
+            "Intenta con otra palabra",
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- MODAL DE ORDENAR ---
+  void _showSortOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Ordenar por',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 20),
+              _buildSortOption('Más recientes'),
+              _buildSortOption('Más antiguos'),
+              _buildSortOption('A-Z'),
+              _buildSortOption('Z-A'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSortOption(String option) {
+    final bool isSelected = _sortOption == option;
+    return ListTile(
+      leading: Radio<String>(
+        value: option,
+        groupValue: _sortOption,
+        activeColor: const Color(0xFFF5501D),
+        onChanged: (String? value) {
+          if (value != null) {
+            setState(() => _sortOption = value);
+            _applySearchOrSort();
+            Navigator.pop(context);
+          }
+        },
+      ),
+      title: Text(
+        option,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+      onTap: () {
+        setState(() => _sortOption = option);
+        _applySearchOrSort();
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  // --- SUPABASE DATA (Corregido con dynamic para evitar error de tipo) ---
+  Future<List<Map<String, dynamic>>> loadData(String query) async {
+    final supabase = Supabase.instance.client;
+    final pattern = '%${query.trim()}%';
+
+    // Usamos 'dynamic' para evitar el conflicto de tipos entre FilterBuilder y TransformBuilder
+    dynamic queryBuilder = supabase
+        .from('servicios')
+        .select()
+        .ilike('titulo', pattern);
+
+    switch (_sortOption) {
+      case 'Más antiguos':
+        queryBuilder = queryBuilder.order('creado_en', ascending: true);
+        break;
+      case 'A-Z':
+        queryBuilder = queryBuilder.order('titulo', ascending: true);
+        break;
+      case 'Z-A':
+        queryBuilder = queryBuilder.order('titulo', ascending: false);
+        break;
+      case 'Más recientes':
+      default:
+        queryBuilder = queryBuilder.order('creado_en', ascending: false);
+        break;
+    }
+
+    final response = await queryBuilder;
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  // --- CARD DEL SERVICIO ---
   Widget buildServiceCard(Map<String, dynamic> servicio) {
     final String titulo = servicio['titulo'] ?? 'Sin título';
     final List<dynamic> fotos = servicio['fotos'] ?? [];
@@ -190,8 +396,9 @@ final query = (ModalRoute.of(context)?.settings.arguments as String?)?.trim() ??
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
               child: Container(
                 height: 130,
                 width: double.infinity,
@@ -200,12 +407,16 @@ final query = (ModalRoute.of(context)?.settings.arguments as String?)?.trim() ??
                     ? Image.network(
                         imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.image_not_supported,
-                                color: Colors.grey),
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                        ),
                       )
-                    : const Icon(Icons.shopping_bag,
-                        size: 50, color: Colors.grey),
+                    : const Icon(
+                        Icons.shopping_bag,
+                        size: 50,
+                        color: Colors.grey,
+                      ),
               ),
             ),
             Padding(
@@ -225,18 +436,5 @@ final query = (ModalRoute.of(context)?.settings.arguments as String?)?.trim() ??
         ),
       ),
     );
-  }
-
-  Future<List<Map<String, dynamic>>> loadData(String query) async {
-    final supabase = Supabase.instance.client;
-    final pattern = '%${query.trim()}%';
-
-    final response = await supabase
-        .from('servicios')
-        .select()
-        .ilike('titulo', pattern)
-        .order('creado_en', ascending: false);
-
-    return List<Map<String, dynamic>>.from(response);
   }
 }

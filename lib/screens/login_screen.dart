@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 40),
                 const Text(
-                  'Randimarket',
+                  'Llama-Market',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,

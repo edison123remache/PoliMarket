@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
+import '../services/rating_service.dart';
 import 'tutorial_policies_screen.dart';
+import 'info_servicio.dart';
+import 'editar_cuenta.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId; // Si es null, muestra el perfil del usuario actual
@@ -21,6 +25,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _calificaciones = [];
   bool _isLoading = true;
   final authService = AuthService(Supabase.instance.client);
+  final RatingService _ratingService = RatingService(
+    Supabase.instance.client,
+  ); // AÑADIR ESTA LÍNEA
 
   @override
   void initState() {
@@ -48,10 +55,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .eq('status', 'activa')
           .order('creado_en', ascending: false);
 
-      // Cargar calificaciones
+      // Cargar calificaciones CON información del usuario que calificó
       final calificacionesResponse = await Supabase.instance.client
           .from('calificaciones')
-          .select()
+          .select(
+            '*, perfiles!calificaciones_from_user_id_fkey(nombre, avatar_url)',
+          )
           .eq('to_user_id', userId);
 
       setState(() {
@@ -64,9 +73,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       debugPrint('Error cargando perfil: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -96,8 +107,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
-              authService.signOut();
+            onPressed: () async {
+              await authService.signOut();
+              await OneSignal.logout();
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
@@ -107,6 +119,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Cerrar Sesión'),
           ),
         ],
+      ),
+    );
+  }
+
+  // NUEVO MÉTODO: Mostrar diálogo de calificación
+  void _mostrarDialogoCalificar() {
+    final currentUser = authService.currentUser;
+    if (currentUser == null || _perfil == null) return;
+    if (currentUser.id == _perfil!['id'])
+      return; // No se puede calificar a uno mismo
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _DialogoCalificarUsuario(
+        toUserId: _perfil!['id'],
+        onCalificado: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Calificación enviada correctamente')),
+          );
+          _loadProfileData(); // Recargar datos para actualizar rating
+        },
+      ),
+    );
+  }
+
+  // NUEVO MÉTODO: Mostrar todas las calificaciones
+  void _mostrarTodasCalificaciones() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _TodasCalificacionesBottomSheet(
+        calificaciones: _calificaciones,
+        ratingStats: _ratingService.calculateRatingStats(_calificaciones),
+        onCalificar: _mostrarDialogoCalificar,
       ),
     );
   }
@@ -168,6 +217,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
+    final isOwnProfile =
+        widget.userId == null || widget.userId == authService.currentUser?.id;
     final String nombre = _perfil?['nombre'] ?? 'Usuario';
     final String? avatarUrl = _perfil?['avatar_url'];
     final DateTime? creadoEn = _perfil?['creado_en'] != null
@@ -331,6 +382,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildCalificacionesSection() {
     final double ratingAvg = (_perfil?['rating_avg'] ?? 0).toDouble();
     final Map<String, int> categoricalRatings = _getCategoricalRatings();
+    final int totalCalificaciones = _calificaciones.length;
+    final bool puedeCalificar =
+        !(widget.userId == null ||
+            widget.userId == authService.currentUser?.id) &&
+        authService.currentUser != null;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -348,6 +404,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. TÍTULO Y ESTRELLAS
           Row(
             children: [
               const Text(
@@ -381,9 +438,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
 
+          if (totalCalificaciones > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: InkWell(
+                onTap: _mostrarTodasCalificaciones,
+                child: Text(
+                  'Ver todas ($totalCalificaciones)',
+                  style: const TextStyle(
+                    color: Color(0xFFFF6B35),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+
           const SizedBox(height: 16),
 
-          // Comentarios categóricos (scroll horizontal)
+          // 3. Comentarios categóricos (scroll horizontal)
           if (categoricalRatings.isNotEmpty)
             SizedBox(
               height: 40,
@@ -448,6 +520,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Text(
                   'Sin calificaciones aún',
                   style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                ),
+              ),
+            ),
+
+          // 4. Botón para calificar (Se mantiene aquí abajo, el único visible)
+          if (puedeCalificar)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _mostrarDialogoCalificar,
+                  icon: const Icon(Icons.star, size: 20),
+                  label: const Text('Calificar Usuario'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF6B35),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
                 ),
               ),
             ),
@@ -524,6 +615,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return GestureDetector(
       onTap: () {
         debugPrint('Publicación seleccionada: ${publicacion['id']}');
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                DetalleServicioScreen(servicioId: publicacion['id']),
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -612,8 +710,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 12),
           _buildMasOption(Icons.settings, 'Ajustes de Cuenta', () {
-            debugPrint('Navegar a Ajustes de Cuenta');
-            // PENDIENTE: Implementar pantalla de ajustes
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AjustesCuentaScreen(),
+              ),
+            ).then((reload) {
+              if (reload == true) {
+                _loadProfileData(); // Recargar datos si hubo cambios
+              }
+            });
           }),
           _buildMasOption(
             Icons.school,
@@ -663,6 +769,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             );
           }),
+          _buildMasOption(
+            Icons.admin_panel_settings,
+            'Panel administrador',
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TutorialPoliciesScreen(
+                    type: TutorialPolicyType.politicasUsuarios,
+                  ),
+                ),
+              );
+            },
+          ),
+
           _buildMasOption(
             Icons.logout,
             'Cerrar Sesión',
@@ -715,6 +836,512 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// =============================================
+// BOTTOM SHEETS PARA CALIFICACIONES
+// =============================================
+
+// Bottom Sheet para mostrar todas las calificaciones
+class _TodasCalificacionesBottomSheet extends StatelessWidget {
+  final List<Map<String, dynamic>> calificaciones;
+  final Map<String, dynamic> ratingStats;
+  final VoidCallback onCalificar;
+
+  const _TodasCalificacionesBottomSheet({
+    required this.calificaciones,
+    required this.ratingStats,
+    required this.onCalificar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final bool puedeCalificar = currentUser != null;
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Barra para arrastrar
+          Container(
+            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Encabezado
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Todas las calificaciones',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Resumen de calificaciones
+                if (ratingStats['total'] > 0) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Column(
+                        children: [
+                          Text(
+                            ratingStats['average'].toString(),
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text('Promedio'),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            '${ratingStats['total']}',
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text('Total'),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // Lista de calificaciones
+          Expanded(
+            child: calificaciones.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.star_border, size: 60, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          'No hay calificaciones aún',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: calificaciones.length,
+                    itemBuilder: (context, index) {
+                      final rating = calificaciones[index];
+                      final user = rating['perfiles'];
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundImage: user?['avatar_url'] != null
+                                        ? NetworkImage(user['avatar_url'])
+                                        : null,
+                                    child: user?['avatar_url'] == null
+                                        ? const Icon(Icons.person)
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          user?['nombre'] ?? 'Usuario',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Row(
+                                          children: List.generate(5, (i) {
+                                            return Icon(
+                                              i < rating['estrellas']
+                                                  ? Icons.star
+                                                  : Icons.star_border,
+                                              color: const Color(0xFFFF6B35),
+                                              size: 16,
+                                            );
+                                          }),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatDate(rating['creado_en']),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                rating['comentario_categorico'],
+                                style: const TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(dynamic date) {
+    try {
+      if (date == null) return '';
+      final dt = date is String ? DateTime.parse(date) : date as DateTime;
+      return '${dt.day}/${dt.month}/${dt.year}';
+    } catch (_) {
+      return '';
+    }
+  }
+}
+
+// Diálogo para calificar usuario
+class _DialogoCalificarUsuario extends StatefulWidget {
+  final String toUserId;
+  final VoidCallback onCalificado;
+
+  const _DialogoCalificarUsuario({
+    required this.toUserId,
+    required this.onCalificado,
+  });
+
+  @override
+  State<_DialogoCalificarUsuario> createState() =>
+      __DialogoCalificarUsuarioState();
+}
+
+class __DialogoCalificarUsuarioState extends State<_DialogoCalificarUsuario> {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final RatingService _ratingService = RatingService(Supabase.instance.client);
+
+  int _estrellas = 0;
+  String? _comentarioSeleccionado;
+  bool _cargandoServicios = true;
+  bool _enviando = false;
+  List<Map<String, dynamic>> _serviciosDisponibles = [];
+  String? _servicioSeleccionadoId;
+
+  final List<String> _comentarios = [
+    'Buen Servicio',
+    'Excelente Comunicacion',
+    'Lento para responder',
+    'Comunicacion Desubicada o Grosera',
+    'Poco Comprometido Nunca llego al acuerdo',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarServiciosCalificables();
+  }
+
+  Future<void> _cargarServiciosCalificables() async {
+    try {
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null) return;
+
+      // Obtener servicios del usuario a calificar
+      final servicios = await _supabase
+          .from('servicios')
+          .select()
+          .eq('user_id', widget.toUserId)
+          .eq('status', 'activa');
+
+      // Verificar para cada servicio si el usuario actual puede calificarlo
+      final serviciosCalificables = <Map<String, dynamic>>[];
+
+      for (final servicio in servicios) {
+        final puedeCalificar = await _ratingService.canUserRate(
+          fromUserId: currentUser.id,
+          toUserId: widget.toUserId,
+          serviceId: servicio['id'],
+        );
+
+        if (puedeCalificar) {
+          serviciosCalificables.add(servicio);
+        }
+      }
+
+      setState(() {
+        _serviciosDisponibles = serviciosCalificables;
+        _cargandoServicios = false;
+
+        // Seleccionar el primer servicio por defecto si hay
+        if (_serviciosDisponibles.isNotEmpty) {
+          _servicioSeleccionadoId = _serviciosDisponibles.first['id'];
+        }
+      });
+    } catch (e) {
+      print('Error cargando servicios: $e');
+      setState(() => _cargandoServicios = false);
+    }
+  }
+
+  Future<void> _enviarCalificacion() async {
+    if (_estrellas == 0 ||
+        _comentarioSeleccionado == null ||
+        _servicioSeleccionadoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor completa todos los campos')),
+      );
+      return;
+    }
+
+    setState(() => _enviando = true);
+
+    try {
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null) throw Exception('Usuario no autenticado');
+
+      await _ratingService.rateUser(
+        fromUserId: currentUser.id,
+        toUserId: widget.toUserId,
+        serviceId: _servicioSeleccionadoId!,
+        stars: _estrellas,
+        categoricalFeedback: _comentarioSeleccionado!,
+      );
+
+      widget.onCalificado();
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() => _enviando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Barra para arrastrar
+          Container(
+            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Encabezado
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Calificar Usuario',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ),
+
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  // Selección de servicio
+                  if (_cargandoServicios)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: CircularProgressIndicator(),
+                    )
+                  else if (_serviciosDisponibles.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'No tienes servicios disponibles para calificar.\n\n'
+                        'Requisitos para calificar:\n'
+                        '• Mínimo 5 mensajes en el chat\n'
+                        '• O una cita aceptada con este usuario',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Selecciona el servicio:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._serviciosDisponibles.map((servicio) {
+                          return RadioListTile<String>(
+                            title: Text(servicio['titulo']),
+                            subtitle: Text(
+                              servicio['descripcion'].length > 50
+                                  ? '${servicio['descripcion'].substring(0, 50)}...'
+                                  : servicio['descripcion'],
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            value: servicio['id'],
+                            groupValue: _servicioSeleccionadoId,
+                            onChanged: (value) {
+                              setState(() {
+                                _servicioSeleccionadoId = value;
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ],
+                    ),
+
+                  const SizedBox(height: 24),
+
+                  // Estrellas
+                  const Text(
+                    '¿Cuántas estrellas?',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        onPressed: () => setState(() => _estrellas = index + 1),
+                        icon: Icon(
+                          index < _estrellas ? Icons.star : Icons.star_border,
+                          color: const Color(0xFFFF6B35),
+                          size: 40,
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Comentarios categóricos
+                  const Text(
+                    'Comentario (selecciona uno):',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._comentarios.map((comentario) {
+                    return RadioListTile<String>(
+                      title: Text(comentario),
+                      value: comentario,
+                      groupValue: _comentarioSeleccionado,
+                      onChanged: (value) {
+                        setState(() {
+                          _comentarioSeleccionado = value;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+          ),
+
+          // Botones
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed:
+                        (_estrellas > 0 &&
+                            _comentarioSeleccionado != null &&
+                            _servicioSeleccionadoId != null &&
+                            !_enviando)
+                        ? _enviarCalificacion
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6B35),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _enviando
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          )
+                        : const Text('Enviar Calificación'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
