@@ -562,22 +562,22 @@ class __ReporteDialogState extends State<_ReporteDialog> {
     'Esta publicación contiene Desnudos o Actividad sexual',
   ];
 
-  Future<void> _enviarReporte() async {
-    if (_razonSeleccionada == null) return;
+Future<void> _enviarReporte() async {
+  if (_razonSeleccionada == null) return;
 
     if (!mounted) return;
     setState(() => _enviandoReporte = true);
 
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('Usuario no autenticado');
+  try {
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('Usuario no autenticado');
 
-      await _supabase.from('reportes').insert({
-        'reporter_id': user.id,
-        'service_id': widget.servicioId,
-        'razones': _razonSeleccionada,
-        'status': 'pendiente',
-      });
+    await _supabase.from('reportes').insert({
+      'reporter_id': user.id,
+      'service_id': widget.servicioId,
+      'razones': _razonSeleccionada,
+      'status': 'pendiente',
+    });
 
       if (!mounted) return;
       widget.onReportado();
