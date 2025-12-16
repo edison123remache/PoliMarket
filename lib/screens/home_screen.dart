@@ -41,10 +41,14 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       _applySorting(); // Aplicar ordenamiento después de cargar
     } catch (e) {
-      debugPrint('Error cargando servicios: $e');
-      setState(() {
-        _isLoading = false;
-      });
+debugPrint('Error cargando servicios: $e');
+
+if (!mounted) return;
+
+setState(() {
+  _isLoading = false;
+});
+
     }
   }
 

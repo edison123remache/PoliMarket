@@ -1,4 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:gotrue/gotrue.dart';
+
 
 class AuthService {
   final SupabaseClient _supabase;
