@@ -49,11 +49,27 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // --- LÓGICA DE BÚSQUEDA ---
   void _applySearchOrSort() {
-    if (searchQuery.isNotEmpty) {
-      setState(() {
-        loadDataFuture = loadData(searchQuery);
-      });
+    setState(() {
+      loadDataFuture = loadData(searchQuery);
+    });
+  }
+
+  void _handleSortTap(String option) {
+    Navigator.pop(context);
+
+    if (option == 'Mayor calificados') {
+      Navigator.pushNamed(context, '/ranking-servicios', arguments: 'best');
+      return;
     }
+
+    if (option == 'Menor calificados') {
+      Navigator.pushNamed(context, '/ranking-servicios', arguments: 'worst');
+      return;
+    }
+
+    // 👉 SI NO, ES ORDEN NORMAL
+    setState(() => _sortOption = option);
+    _applySearchOrSort();
   }
 
   @override
@@ -292,6 +308,8 @@ class _SearchScreenState extends State<SearchScreen> {
               _buildSortOption('Más antiguos'),
               _buildSortOption('A-Z'),
               _buildSortOption('Z-A'),
+              _buildSortOption('Mayor calificados'),
+              _buildSortOption('Menor calificados'),
             ],
           ),
         );
@@ -301,18 +319,13 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSortOption(String option) {
     final bool isSelected = _sortOption == option;
+
     return ListTile(
       leading: Radio<String>(
         value: option,
         groupValue: _sortOption,
         activeColor: const Color(0xFFF5501D),
-        onChanged: (String? value) {
-          if (value != null) {
-            setState(() => _sortOption = value);
-            _applySearchOrSort();
-            Navigator.pop(context);
-          }
-        },
+        onChanged: (_) => _handleSortTap(option),
       ),
       title: Text(
         option,
@@ -321,11 +334,7 @@ class _SearchScreenState extends State<SearchScreen> {
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
-      onTap: () {
-        setState(() => _sortOption = option);
-        _applySearchOrSort();
-        Navigator.pop(context);
-      },
+      onTap: () => _handleSortTap(option),
     );
   }
 
@@ -337,19 +346,36 @@ class _SearchScreenState extends State<SearchScreen> {
     // Usamos 'dynamic' para evitar el conflicto de tipos entre FilterBuilder y TransformBuilder
     dynamic queryBuilder = supabase
         .from('servicios')
-        .select()
+        .select('*, perfiles(rating_avg)')
         .ilike('titulo', pattern);
 
     switch (_sortOption) {
       case 'Más antiguos':
         queryBuilder = queryBuilder.order('creado_en', ascending: true);
         break;
+
       case 'A-Z':
         queryBuilder = queryBuilder.order('titulo', ascending: true);
         break;
+
       case 'Z-A':
         queryBuilder = queryBuilder.order('titulo', ascending: false);
         break;
+
+      case 'Mejor calificados':
+        queryBuilder = queryBuilder.order(
+          'perfiles.rating_avg',
+          ascending: false,
+        );
+        break;
+
+      case 'Peor calificados':
+        queryBuilder = queryBuilder.order(
+          'perfiles.rating_avg',
+          ascending: true,
+        );
+        break;
+
       case 'Más recientes':
       default:
         queryBuilder = queryBuilder.order('creado_en', ascending: false);

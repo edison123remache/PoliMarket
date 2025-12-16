@@ -413,7 +413,7 @@ class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
   }
 
   void _mostrarDetalleServicio(Map<String, dynamic> servicio) {
-    final fotos = servicio['fotos'] is List
+    final _ = servicio['fotos'] is List
         ? servicio['fotos'] as List<dynamic>
         : [];
 

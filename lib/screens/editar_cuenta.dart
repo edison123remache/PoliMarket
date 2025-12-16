@@ -4,8 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/auth_service.dart';
-import 'profile_screen.dart';
-import 'admin_panel.dart';
 
 class AjustesCuentaScreen extends StatefulWidget {
   const AjustesCuentaScreen({super.key});
@@ -20,11 +18,10 @@ class _AjustesCuentaScreenState extends State<AjustesCuentaScreen> {
   final ImagePicker _picker = ImagePicker();
 
   File? _nuevaFoto;
-  TextEditingController _bioController = TextEditingController();
+  final _bioController = TextEditingController();
   bool _isLoading = true;
   bool _guardando = false;
   Map<String, dynamic>? _perfil;
-  String? _rolActual; // Solo para lectura
 
   @override
   void initState() {
@@ -46,7 +43,6 @@ class _AjustesCuentaScreenState extends State<AjustesCuentaScreen> {
       setState(() {
         _perfil = perfilData;
         _bioController.text = perfilData['bio'] ?? '';
-        _rolActual = perfilData['rol'] ?? 'user';
         _isLoading = false;
       });
     } catch (e) {
@@ -172,96 +168,6 @@ class _AjustesCuentaScreenState extends State<AjustesCuentaScreen> {
     }
   }
 
-  void _mostrarDialogoCambioAModoAdmin() {
-    final bool esAdmin = _rolActual == 'admin';
-
-    if (esAdmin) {
-      // Si ya es admin, mostrar diálogo para ir al panel de admin
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Ir al Panel de Administración'),
-          content: const Text('¿Quieres acceder al panel de administración?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _irAlPanelAdmin();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6B35),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Ir al Panel'),
-            ),
-          ],
-        ),
-      );
-    } else {
-      // Si no es admin, mostrar que no tiene permisos
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Acceso Denegado'),
-          content: const Text(
-            'No tienes permisos de administrador. '
-            'Solo los usuarios administradores pueden acceder al panel.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  Future<void> _irAlPanelAdmin() async {
-    // Guardar cambios primero si hay cambios pendientes
-    final bool hayCambios =
-        _bioController.text != (_perfil?['bio'] ?? '') || _nuevaFoto != null;
-
-    if (hayCambios) {
-      final confirmado = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Cambios sin guardar'),
-          content: const Text(
-            'Tienes cambios sin guardar. '
-            '¿Quieres guardar los cambios antes de ir al panel de administración?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('No guardar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Guardar y continuar'),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmado == true) {
-        await _guardarCambios();
-      }
-    }
-
-    // Navegar al panel de administración
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const AdminPanel()),
-      (route) => false, // Limpiar el stack
-    );
-  }
-
   void _confirmarGuardarCambios() {
     showDialog(
       context: context,
@@ -334,73 +240,6 @@ class _AjustesCuentaScreenState extends State<AjustesCuentaScreen> {
     );
   }
 
-  Widget _buildEstadoRol() {
-    final bool esAdmin = _rolActual == 'admin';
-
-    return GestureDetector(
-      onTap: () {
-        if (esAdmin) {
-          // Si es admin, mostrar opciones
-          showModalBottomSheet(
-            context: context,
-            builder: (context) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.admin_panel_settings),
-                    title: const Text('Administrador'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _mostrarDialogoCambioAModoAdmin();
-                    },
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: esAdmin
-              ? const Color.fromARGB(255, 243, 186, 79).withOpacity(0.1)
-              : const Color.fromARGB(255, 109, 109, 109).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: esAdmin
-                ? const Color.fromARGB(255, 231, 106, 48)
-                : const Color.fromARGB(255, 109, 109, 109),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(width: 8),
-            Text(
-              'Cambiar modo de usuario',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: esAdmin
-                    ? const Color.fromARGB(255, 231, 106, 48)
-                    : const Color.fromARGB(255, 109, 109, 109),
-              ),
-            ),
-            if (esAdmin) ...[
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.arrow_drop_down,
-                color: Color.fromARGB(255, 231, 106, 48),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -456,10 +295,6 @@ class _AjustesCuentaScreenState extends State<AjustesCuentaScreen> {
             // Biografía editable
             _buildSeccionBiografia(),
             const SizedBox(height: 32),
-
-            // Estado del rol (con opciones desplegables si es admin)
-            const SizedBox(height: 4),
-            _buildEstadoRol(),
 
             // Botones de acción
             const SizedBox(height: 24),

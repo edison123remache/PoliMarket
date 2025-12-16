@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:randimarket/screens/admin_panel.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
@@ -217,8 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
-    final isOwnProfile =
-        widget.userId == null || widget.userId == authService.currentUser?.id;
+    // final isOwnProfile = widget.userId == null || widget.userId == authService.currentUser?.id;
     final String nombre = _perfil?['nombre'] ?? 'Usuario';
     final String? avatarUrl = _perfil?['avatar_url'];
     final DateTime? creadoEn = _perfil?['creado_en'] != null
@@ -769,20 +769,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             );
           }),
-          _buildMasOption(
-            Icons.admin_panel_settings,
-            'Panel administrador',
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TutorialPoliciesScreen(
-                    type: TutorialPolicyType.politicasUsuarios,
-                  ),
-                ),
-              );
-            },
-          ),
+          if (_perfil?['rol'] == 'admin')
+            _buildMasOption(
+              Icons.admin_panel_settings,
+              'Panel administrador',
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminPanel()),
+                );
+              },
+            ),
 
           _buildMasOption(
             Icons.logout,
@@ -859,8 +856,8 @@ class _TodasCalificacionesBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    final bool puedeCalificar = currentUser != null;
+    // final currentUser = Supabase.instance.client.auth.currentUser;
+    // final bool puedeCalificar = currentUser != null;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.8,

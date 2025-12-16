@@ -3,8 +3,8 @@ import 'package:randimarket/screens/chat_list_screen.dart';
 import 'package:randimarket/screens/home_screen.dart';
 import 'package:randimarket/screens/profile_screen.dart';
 import 'package:randimarket/screens/cita_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // 🔴 AÑADIDO
 
-//...
 class MainScreen extends StatefulWidget {
   final String? path;
 
@@ -17,6 +17,9 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  final _supabase = Supabase.instance.client; // 🔴 AÑADIDO
+  late final Stream<int> _unreadCountStream; // 🔴 AÑADIDO
+
   final items = [
     {
       'icon': Icons.home,
@@ -43,11 +46,38 @@ class _MainScreenState extends State<MainScreen> {
       'content': ProfileScreen(),
     },
   ];
+
   int currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
+
+    // 🔴 STREAM PARA MENSAJES PENDIENTES
+    final userId = _supabase.auth.currentUser?.id;
+
+if (userId != null) {
+  _unreadCountStream = _supabase
+      .from('mensajes') // 👈 TABLA DE MENSAJES, NO chats
+      .stream(primaryKey: ['id'])
+      .map((rows) {
+        int count = 0;
+
+        for (final msg in rows) {
+          final esParaMi = msg['receptor_id'] == userId;
+          final noLeido = msg['leido'] == false;
+
+          if (esParaMi && noLeido) {
+            count++;
+          }
+        }
+
+        return count;
+      });
+} else {
+  _unreadCountStream = Stream.value(0);
+}
+
 
     if (widget.path == null) return;
 
@@ -62,8 +92,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(color: Colors.white),
-
+        decoration: const BoxDecoration(color: Colors.white),
         child: items[currentIndex]['content'] as Widget,
       ),
       bottomNavigationBar: Container(
@@ -77,12 +106,10 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
         ),
-
         child: BottomAppBar(
           padding: EdgeInsets.zero,
           height: 68.0,
           color: Colors.transparent,
-
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -96,7 +123,7 @@ class _MainScreenState extends State<MainScreen> {
                 style: ButtonStyle(
                   elevation: WidgetStateProperty.all(4.0),
                   padding: WidgetStateProperty.all(EdgeInsets.zero),
-                  minimumSize: WidgetStateProperty.all(Size(52.0, 52.0)),
+                  minimumSize: WidgetStateProperty.all(const Size(52.0, 52.0)),
                   backgroundColor: WidgetStateProperty.all(
                     const Color(0xFFF5501D),
                   ),
@@ -117,25 +144,58 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget buildItem(Map<String, Object> item) {
     final selected = items[currentIndex] == item;
+    final isMessages = item['label'] == 'Mensajes'; // 🔴 AÑADIDO
 
     return Container(
-      constraints: BoxConstraints(minWidth: 68.0),
-
+      constraints: const BoxConstraints(minWidth: 68.0),
       child: InkWell(
         borderRadius: BorderRadius.circular(100.0),
         onTap: () {
           if (!mounted) return;
-
           setState(() => currentIndex = items.indexOf(item));
         },
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           spacing: 4.0,
           children: [
-            Icon(
-              item['icon'] as IconData,
-              color: selected ? const Color(0xFFF5501D) : Colors.grey.shade400,
-            ),
+            if (isMessages)
+              StreamBuilder<int>(
+                stream: _unreadCountStream,
+                builder: (context, snapshot) {
+                  final count = snapshot.data ?? 0;
+
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        item['icon'] as IconData,
+                        color: selected
+                            ? const Color(0xFFF5501D)
+                            : Colors.grey.shade400,
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          top: -2,
+                          right: -6,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              )
+            else
+              Icon(
+                item['icon'] as IconData,
+                color:
+                    selected ? const Color(0xFFF5501D) : Colors.grey.shade400,
+              ),
             Text(
               item['label'] as String,
               style: TextStyle(

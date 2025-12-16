@@ -14,6 +14,7 @@ import 'screens/search_screen.dart';
 import 'screens/chat_list_screen.dart';
 import 'screens/cita_screen.dart';
 import 'screens/admin_panel.dart';
+import 'screens/ranking_users_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,16 +65,21 @@ class MyApp extends StatelessWidget {
 
       // ✅ PANTALLA INICIAL
       home: const AuthWrapper(),
+routes: {
+  '/profile': (context) => const ProfileScreen(),
+  '/SubirServ': (context) => const SubirServicioScreen(),
+  '/search': (context) => const SearchScreen(),
+  '/home': (context) => const HomeScreen(),
+  '/chatList': (context) => const ChatListScreen(),
+  '/citaList': (context) => const AgendaScreen(),
+  '/admin': (context) => const AdminPanel(),
 
-      routes: {
-        '/profile': (context) => const ProfileScreen(),
-        '/SubirServ': (context) => const SubirServicioScreen(),
-        '/search': (context) => const SearchScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/chatList': (context) => const ChatListScreen(),
-        '/citaList': (context) => const AgendaScreen(),
-        '/admin': (context) => const AdminPanel(),
-      },
+  // 🟢 SERVICIOS (EL QUE VAS A USAR)
+  '/ranking-servicios': (context) {
+    final mode = ModalRoute.of(context)!.settings.arguments as String;
+    return RankingServiciosScreen(mode: mode);
+  },
+},
 
       debugShowCheckedModeBanner: false,
     );

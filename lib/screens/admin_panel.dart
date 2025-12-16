@@ -3,8 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'usuarios_admin_panel.dart';
 import 'publicaciones_admin_panel.dart';
 import 'reportes_admin_panel.dart';
-import 'profile_screen.dart';
-import 'home_screen.dart';
 
 class AdminPanel extends StatefulWidget {
   const AdminPanel({super.key});
@@ -70,38 +68,6 @@ class _AdminPanelState extends State<AdminPanel> {
     ).then((_) => _cargarEstadisticas());
   }
 
-  // Lógica del botón de salida
-  Future<void> _salirDelModoAdmin() async {
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Salir del Modo Admin'),
-        content: const Text(
-          '¿Estás seguro que quieres volver al modo usuario normal?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Salir', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmado == true && mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-        (route) => false,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Colores basados en tu imagen
@@ -112,6 +78,17 @@ class _AdminPanelState extends State<AdminPanel> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+        title: const Text('Panel administrativo'),
+        actions: [
+        ],
+      ),
       // SafeArea evita que se solape con la barra de notificaciones
       body: SafeArea(
         child: SingleChildScrollView(
@@ -119,22 +96,7 @@ class _AdminPanelState extends State<AdminPanel> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. TÍTULO
-              const Text(
-                'Panel de Administración',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Línea divisoria superior
-              const Divider(color: Colors.orange, thickness: 1),
-              const SizedBox(height: 20),
-
-              // 2. TARJETAS SUPERIORES (Usuarios y Publicaciones)
+              // 1. TARJETAS SUPERIORES (Usuarios y Publicaciones)
               Row(
                 children: [
                   Expanded(
@@ -184,41 +146,6 @@ class _AdminPanelState extends State<AdminPanel> {
                 colorFondo: colorFondoPendientes,
                 onTap: () => _irAPantalla(const PublicacionesAdminScreen()),
               ),
-
-              const SizedBox(height: 40),
-
-              // Línea divisoria inferior
-              const Divider(color: Colors.orange, thickness: 1),
-
-              // 4. SECCIÓN SALIDA (Abajo del todo)
-              const SizedBox(height: 10),
-              const Text(
-                'Salida',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  side: const BorderSide(color: Colors.grey, width: 0.5),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 5,
-                  ),
-                  title: const Text('Regresar a modo User normal'),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Colors.grey,
-                  ),
-                  onTap: _salirDelModoAdmin,
-                ),
-              ),
-              const SizedBox(height: 20),
             ],
           ),
         ),

@@ -90,67 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _showSortOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Ordenar por',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 20),
-              _buildSortOption('Más recientes'),
-              _buildSortOption('Más antiguos'),
-              _buildSortOption('A-Z'),
-              _buildSortOption('Z-A'),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
-  Widget _buildSortOption(String option) {
-    final bool isSelected = _sortOption == option;
-    return ListTile(
-      leading: Radio<String>(
-        value: option,
-        groupValue: _sortOption,
-        activeColor: const Color(0xFFF5501D),
-        onChanged: (String? value) {
-          if (value != null) {
-            setState(() {
-              _sortOption = value;
-            });
-            _applySorting();
-            Navigator.pop(context);
-          }
-        },
-      ),
-      title: Text(
-        option,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
-      onTap: () {
-        setState(() {
-          _sortOption = option;
-        });
-        _applySorting();
-        Navigator.pop(context);
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -186,54 +126,51 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          // Barra de búsqueda
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Buscar servicios...',
-                  hintStyle: TextStyle(color: Colors.grey[400]),
-                  border: InputBorder.none,
-                  icon: Icon(Icons.search, color: Colors.grey[600]),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+Widget _buildSearchBar() {
+  return Container(
+    margin: const EdgeInsets.all(20),
+    child: Row(
+      children: [
+        // Barra de búsqueda
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-                onSubmitted: (value) {
-                  debugPrint('Buscar: $value');
-
-                  if (value.trim().isEmpty) return;
-
-                  Navigator.pushNamed(
-                    context,
-                    '/search',
-                    arguments: value.trim(),
-                  );
-                  _searchController.clear();
-                },
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Buscar servicios...',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                border: InputBorder.none,
+                icon: Icon(Icons.search, color: Colors.grey[600]),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),
+              onSubmitted: (value) {
+                if (value.trim().isEmpty) return;
+                Navigator.pushNamed(context, '/search', arguments: value.trim());
+                _searchController.clear();
+              },
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+
+        const SizedBox(width: 10),
+      ],
+    ),
+  );
+}
+
+  
 
   Widget _buildBannerSection() {
     final PageController controller = PageController();
