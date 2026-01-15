@@ -5,7 +5,7 @@ import 'dart:convert';
 import '../services/chat_service.dart';
 import 'propuesta_encuentro_screen.dart';
 import 'profile_screen.dart';
-import '../widgets/cita_message_bubble.dart';
+import 'cita_detail_screen.dart';
 import 'info_servicio.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -15,7 +15,7 @@ class ChatScreen extends StatefulWidget {
   final String? servicioPrecio;
   final String? servicioFotoUrl;
   final String? servicioId;
-  final String? vendedorId; // ID del vendedor del servicio
+  final String? vendedorId;
 
   const ChatScreen({
     super.key,
@@ -45,6 +45,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isTyping = false;
   int _lastRenderedCount = 0;
 
+  final Color kPrimary = const Color(0xFFFF6B35);
+  final Color kMyMessage = const Color(0xFFFF6B35);
+  final Color kOtherMessage = const Color(0xFFF5F5F5);
+
   @override
   void initState() {
     super.initState();
@@ -55,7 +59,6 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() => _isTyping = _controller.text.trim().isNotEmpty);
     });
 
-    // 🔍 DEBUG: Ver qué valores llegan
     debugPrint('=== CHAT SCREEN DEBUG ===');
     debugPrint('Mi ID (user): ${user?.id}');
     debugPrint('Otro usuario ID: ${widget.otherUserId}');
@@ -72,13 +75,13 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty || user == null) return;
 
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-    final ahoraUtc = DateTime.now().toUtc().toIso8601String();
+    final ahoraLocal = DateTime.now().toIso8601String();
 
     final optimisticMessage = {
       'id': tempId,
       'remitente_id': user!.id,
       'contenido': text,
-      'creado_en': ahoraUtc,
+      'creado_en': ahoraLocal,
       '_is_optimistic': true,
     };
 
@@ -98,7 +101,14 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al enviar mensaje')),
+          SnackBar(
+            content: const Text('Error al enviar mensaje'),
+            backgroundColor: Colors.red.shade400,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         );
         setState(() {
           _optimisticMessages.removeWhere((m) => m['id'] == tempId);
@@ -121,11 +131,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   DateTime _parseCreatedEn(dynamic value) {
     try {
-      if (value == null) return DateTime.fromMillisecondsSinceEpoch(0).toUtc();
-      if (value is DateTime) return value.toUtc();
-      if (value is String) return DateTime.parse(value).toUtc();
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value.toLocal();
+      if (value is String) return DateTime.parse(value).toLocal();
     } catch (_) {}
-    return DateTime.fromMillisecondsSinceEpoch(0).toUtc();
+    return DateTime.now();
   }
 
   String _formatHourFromCreated(dynamic createdEn) {
@@ -200,28 +210,33 @@ class _ChatScreenState extends State<ChatScreen> {
     final String nombre = _otherProfile?['nombre'] ?? 'Cargando...';
     final String? avatarUrl = _otherProfile?['avatar_url'];
 
-    // ✅ LÓGICA CORRECTA:
-    // Si vendedorId es null, usamos fallback (asumir que quien tiene servicioTitulo es vendedor)
     final bool soyVendedor = widget.vendedorId != null
         ? widget.vendedorId == user?.id
-        : false; // Si no hay vendedorId, no mostrar botón
+        : false;
 
     final bool otroEsVendedor = widget.vendedorId != null
         ? widget.vendedorId == widget.otherUserId
-        : widget.servicioTitulo != null; // Fallback
-
-    // 🔍 DEBUG en el build
-    debugPrint('🔍 soyVendedor: $soyVendedor');
-    debugPrint('🔍 otroEsVendedor: $otroEsVendedor');
+        : widget.servicioTitulo != null;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFBFBFE),
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+        elevation: 0,
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.grey.shade800,
+              size: 20,
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
         ),
         title: GestureDetector(
           onTap: () {
@@ -234,15 +249,24 @@ class _ChatScreenState extends State<ChatScreen> {
           },
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                    ? NetworkImage(avatarUrl)
-                    : null,
-                backgroundColor: Colors.grey[400],
-                child: avatarUrl == null || avatarUrl.isEmpty
-                    ? const Icon(Icons.person, size: 22)
-                    : null,
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: kPrimary.withOpacity(0.3),
+                    width: 2,
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                      ? NetworkImage(avatarUrl)
+                      : null,
+                  backgroundColor: kPrimary.withOpacity(0.1),
+                  child: avatarUrl == null || avatarUrl.isEmpty
+                      ? Icon(Icons.person_rounded, size: 24, color: kPrimary)
+                      : null,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -252,17 +276,20 @@ class _ChatScreenState extends State<ChatScreen> {
                     Text(
                       nombre,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      otroEsVendedor
-                          ? 'Acerca del vendedor'
-                          : 'Acerca del comprador',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      otroEsVendedor ? 'Vendedor' : 'Comprador',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: kPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -271,120 +298,191 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-            onSelected: (value) async {
-              if (value == 'delete') {
-                final confirmar = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text("Eliminar chat"),
-                    content: const Text(
-                      "Esto borrará todo el historial del chat. ¿Deseas continuar?",
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert_rounded, color: Colors.grey.shade800),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onSelected: (value) async {
+                if (value == 'delete') {
+                  final confirmar = await showDialog<bool>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      title: const Text("Eliminar chat"),
+                      content: const Text(
+                        "Esto borrará todo el historial del chat. ¿Deseas continuar?",
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text("Cancelar"),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                          ),
+                          child: const Text("Eliminar"),
+                        ),
+                      ],
                     ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text("Cancelar"),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text("Eliminar"),
-                      ),
-                    ],
-                  ),
-                );
+                  );
 
-                if (confirmar == true) {
-                  await ChatService.instance.deleteChat(widget.chatId);
-
-                  if (mounted) {
-                    Navigator.pop(context);
+                  if (confirmar == true) {
+                    await ChatService.instance.deleteChat(widget.chatId);
+                    if (mounted) Navigator.pop(context);
                   }
                 }
-              }
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'delete', child: Text("Eliminar chat")),
-            ],
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                      SizedBox(width: 12),
+                      Text("Eliminar chat"),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: Colors.grey.shade200, height: 1),
+        ),
       ),
       body: Column(
         children: [
+          // Card de servicio mejorada
           if (widget.servicioTitulo != null)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  final servicioId = widget.servicioId;
-                  if (servicioId != null && servicioId.isNotEmpty) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            DetalleServicioScreen(servicioId: servicioId),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Servicio no disponible')),
-                    );
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+            Container(
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      if (widget.servicioFotoUrl != null &&
-                          widget.servicioFotoUrl!.isNotEmpty)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            widget.servicioFotoUrl!,
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.image_outlined),
-                            ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    final servicioId = widget.servicioId;
+                    if (servicioId != null && servicioId.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              DetalleServicioScreen(servicioId: servicioId),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Servicio no disponible'),
+                          backgroundColor: Colors.orange.shade400,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.servicioTitulo!,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
+                      );
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        if (widget.servicioFotoUrl != null &&
+                            widget.servicioFotoUrl!.isNotEmpty)
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: kPrimary.withOpacity(0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            if (widget.servicioPrecio != null &&
-                                widget.servicioPrecio!.isNotEmpty)
-                              Text(
-                                widget.servicioPrecio!,
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 13,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                widget.servicioFotoUrl!,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 56,
+                                  height: 56,
+                                  color: kPrimary.withOpacity(0.1),
+                                  child: Icon(
+                                    Icons.image_outlined,
+                                    color: kPrimary,
+                                  ),
                                 ),
                               ),
-                          ],
+                            ),
+                          ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.servicioTitulo!,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: Color(0xFF1E293B),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (widget.servicioPrecio != null &&
+                                  widget.servicioPrecio!.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.servicioPrecio!,
+                                  style: TextStyle(
+                                    color: kPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.grey.shade400,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -464,10 +562,32 @@ class _ChatScreenState extends State<ChatScreen> {
                     });
 
                     if (allMessages.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'Empieza la conversación',
-                          style: TextStyle(color: Colors.grey),
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: kPrimary.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                size: 48,
+                                color: kPrimary.withOpacity(0.6),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Empieza la conversación',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     }
@@ -483,7 +603,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                     return ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                       itemCount: allMessages.length,
                       itemBuilder: (context, i) {
                         final msg = allMessages[i];
@@ -522,6 +642,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             'estado': citaMap['estado'] ?? 'pendiente',
                             'propuesto_por':
                                 citaMap['propuesto_por'] ?? user?.id,
+                            'lat': citaMap['lat'],
+                            'lon': citaMap['lon'],
                           };
                           return CitaMessageBubble(
                             cita: cita,
@@ -550,47 +672,76 @@ class _ChatScreenState extends State<ChatScreen> {
                               ? Alignment.centerRight
                               : Alignment.centerLeft,
                           child: Opacity(
-                            opacity: isOptimistic ? 0.92 : 1.0,
+                            opacity: isOptimistic ? 0.7 : 1.0,
                             child: Container(
                               margin: const EdgeInsets.symmetric(
-                                vertical: 6,
-                                horizontal: 8,
+                                vertical: 4,
+                                horizontal: 4,
                               ),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
-                                vertical: 10,
+                                vertical: 12,
                               ),
                               constraints: BoxConstraints(
                                 maxWidth:
                                     MediaQuery.of(context).size.width * 0.75,
                               ),
                               decoration: BoxDecoration(
-                                color: isMe
-                                    ? const Color(0xFF007AFF)
-                                    : const Color(0xFFE5E5EA),
-                                borderRadius: BorderRadius.circular(20),
+                                gradient: isMe
+                                    ? LinearGradient(
+                                        colors: [
+                                          kPrimary,
+                                          kPrimary.withOpacity(0.8),
+                                        ],
+                                      )
+                                    : null,
+                                color: isMe ? null : kOtherMessage,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(20),
+                                  topRight: const Radius.circular(20),
+                                  bottomLeft: isMe
+                                      ? const Radius.circular(20)
+                                      : const Radius.circular(4),
+                                  bottomRight: isMe
+                                      ? const Radius.circular(4)
+                                      : const Radius.circular(20),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     texto,
                                     style: TextStyle(
                                       color: isMe
                                           ? Colors.white
-                                          : Colors.black87,
-                                      fontSize: 15.5,
+                                          : const Color(0xFF1E293B),
+                                      fontSize: 15,
+                                      height: 1.4,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    horaTexto,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: isMe
-                                          ? Colors.white70
-                                          : Colors.black54,
-                                    ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        horaTexto,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isMe
+                                              ? Colors.white70
+                                              : Colors.grey.shade600,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -604,81 +755,100 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // Input + Botón propuesta
                 Positioned(
-                  bottom: 20,
+                  bottom: 16,
                   left: 16,
                   right: 16,
-                  child: Row(
-                    children: [
-                      // ✅ Solo el VENDEDOR puede crear propuestas
-                      if (soyVendedor)
-                        FloatingActionButton.small(
-                          heroTag: "propuesta",
-                          backgroundColor: Colors.orange,
-                          onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => PropuestaEncuentroScreen(
-                                  chatId: widget.chatId,
-                                  otherUserId: widget.otherUserId,
-                                ),
-                              ),
-                            );
-                          },
-                          child: const Icon(
-                            Icons.calendar_today,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
                         ),
-                      if (soyVendedor) const SizedBox(width: 12),
-                      Expanded(
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: TextField(
-                                  controller: _controller,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Escribe un mensaje...',
-                                    border: InputBorder.none,
-                                    hintStyle: TextStyle(color: Colors.grey),
-                                  ),
-                                  onSubmitted: (_) =>
-                                      _sendMessage(_controller.text.trim()),
-                                ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        if (soyVendedor)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [kPrimary, kPrimary.withOpacity(0.8)],
                               ),
-                              if (_isTyping)
-                                GestureDetector(
-                                  onTap: () =>
-                                      _sendMessage(_controller.text.trim()),
-                                  child: Container(
-                                    margin: const EdgeInsets.only(right: 8),
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF007AFF),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.send,
-                                      color: Colors.white,
-                                      size: 18,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: kPrimary.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.calendar_today_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => PropuestaEncuentroScreen(
+                                      chatId: widget.chatId,
+                                      otherUserId: widget.otherUserId,
                                     ),
                                   ),
-                                ),
-                            ],
+                                );
+                              },
+                            ),
+                          ),
+                        Expanded(
+                          child: TextField(
+                            controller: _controller,
+                            decoration: const InputDecoration(
+                              hintText: 'Escribe un mensaje...',
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 14,
+                              ),
+                              hintStyle: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 15,
+                              ),
+                            ),
+                            onSubmitted: (_) =>
+                                _sendMessage(_controller.text.trim()),
                           ),
                         ),
-                      ),
-                    ],
+                        if (_isTyping)
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [kPrimary, kPrimary.withOpacity(0.8)],
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.send_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              onPressed: () =>
+                                  _sendMessage(_controller.text.trim()),
+                            ),
+                          )
+                        else
+                          const SizedBox(width: 12),
+                      ],
+                    ),
                   ),
                 ),
               ],

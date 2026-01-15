@@ -1,4 +1,4 @@
-package com.grupo6.llama_market
+package com.grupo6.randimarket
 
 import io.flutter.embedding.android.FlutterActivity
 

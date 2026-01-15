@@ -1,4 +1,4 @@
-name: llama_market
+name: randimarket
 description: "A new Flutter project."
 publish_to: 'none'
 version: 1.0.0+1
@@ -9,17 +9,24 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   supabase_flutter: ^2.0.0
   flutter_dotenv: ^5.1.0
   equatable: ^2.0.5
   smooth_page_indicator: ^1.1.0
-  intl: ^0.18.1
+  intl: ^0.20.2
   image_picker: ^1.0.4
-  http: ^0.13.5
+  http: ^1.6.0
   permission_handler: ^11.0.1
   geolocator: ^9.0.2
   cached_network_image: ^3.3.0
   rxdart: ^0.27.7
+  onesignal_flutter: ^5.1.2
+  path_provider: ^2.1.5
+  open_file: ^3.5.10
+  url_launcher: ^6.2.0
+  app_links: ^6.4.1
 
 
 dev_dependencies:
@@ -27,5 +34,9 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
 
+
+
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
