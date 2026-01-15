@@ -739,12 +739,92 @@ class _UsuariosAdminScreenState extends State<UsuariosAdminScreen> {
     _cargarUsuarios();
   }
 
-  Future<void> _confirmarBorrado(String id) async {
-    // Aquí implementas la lógica de update de 'activo' a false
-    await _supabase.from('perfiles').update({'activo': false}).eq('id', id);
-    Navigator.pop(context);
-    _cargarUsuarios();
+// Reemplaza el método _confirmarBorrado con este:
+
+// Reemplaza el método _confirmarBorrado con este:
+
+Future<void> _confirmarBorrado(String id) async {
+  // Primero cierra el diálogo de detalle
+  Navigator.pop(context);
+  
+  // Muestra un diálogo de confirmación
+  final confirmar = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+          SizedBox(width: 10),
+          Text('¿Eliminar usuario?'),
+        ],
+      ),
+      content: const Text(
+        'Esta acción desactivará el usuario. ¿Estás seguro?',
+        style: TextStyle(fontSize: 15),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFEF4444),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text('Eliminar'),
+        ),
+      ],
+    ),
+  );
+
+  // Si confirmó, procede a eliminar
+  if (confirmar == true) {
+    try {
+      // Opción 1: Si quieres ELIMINAR permanentemente
+      await _supabase
+          .from('perfiles')
+          .delete()
+          .eq('id', id);
+      
+      // Opción 2: Si tienes columna 'activo', descomenta esto:
+      // await _supabase
+      //     .from('perfiles')
+      //     .update({'activo': false})
+      //     .eq('id', id);
+      
+      // Muestra mensaje de éxito
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Usuario desactivado correctamente'),
+            backgroundColor: Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      
+      // Recarga la lista
+      await _cargarUsuarios();
+    } catch (e) {
+      // Muestra mensaje de error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al eliminar: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
+}
 }
 
 // Custom painter para el patrón decorativo del header
