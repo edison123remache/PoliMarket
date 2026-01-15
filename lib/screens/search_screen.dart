@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:randimarket/screens/info_servicio.dart'; // Verifica esta ruta
+import 'package:llama_market/screens/info_servicio.dart'; // Verifica esta ruta
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});

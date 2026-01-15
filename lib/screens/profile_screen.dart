@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
-import 'package:randimarket/screens/admin_panel.dart';
+import 'package:llama_market/screens/admin_panel.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
@@ -332,73 +333,85 @@ class _ProfileScreenState extends State<ProfileScreen>
     final isOwnProfile =
         widget.userId == null || widget.userId == authService.currentUser?.id;
 
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      appBar: isOwnProfile
-          ? null
-          : AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              leading: IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
+      ),
+
+      child: Scaffold(
+        backgroundColor: _backgroundColor,
+        appBar: isOwnProfile
+            ? null
+            : AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 18,
+                      color: _darkText,
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+        body: _perfil == null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error cargando perfil',
+                      style: TextStyle(color: _lightText, fontSize: 16),
+                    ),
+                  ],
+                ),
+              )
+            : FadeTransition(
+                opacity: _fadeAnimation,
+                child: SafeArea(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    children: [
+                      _buildProfileHeader(isOwnProfile),
+                      const SizedBox(height: 20),
+                      _buildSobreMiSection(),
+                      const SizedBox(height: 20),
+                      _buildCalificacionesSection(isOwnProfile),
+                      const SizedBox(height: 20),
+                      _buildPublicacionesSection(),
+                      if (isOwnProfile) ...[
+                        const SizedBox(height: 20),
+                        _buildMasSection(),
+                      ],
+                      const SizedBox(height: 20),
                     ],
                   ),
-                  child: Icon(
-                    Icons.arrow_back_ios_new,
-                    size: 18,
-                    color: _darkText,
-                  ),
                 ),
-                onPressed: () => Navigator.pop(context),
               ),
-            ),
-      body: _perfil == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error cargando perfil',
-                    style: TextStyle(color: _lightText, fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : FadeTransition(
-              opacity: _fadeAnimation,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                children: [
-                  _buildProfileHeader(isOwnProfile),
-                  const SizedBox(height: 20),
-                  _buildSobreMiSection(),
-                  const SizedBox(height: 20),
-                  _buildCalificacionesSection(isOwnProfile),
-                  const SizedBox(height: 20),
-                  _buildPublicacionesSection(),
-                  if (isOwnProfile) ...[
-                    const SizedBox(height: 20),
-                    _buildMasSection(),
-                  ],
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
+      ),
     );
   }
 
