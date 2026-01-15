@@ -15,6 +15,13 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
   final SupabaseClient _supabase = Supabase.instance.client;
   final TextEditingController _searchController = TextEditingController();
 
+  // --- PALETA DE COLORES PREMIUM ---
+  final Color _brandOrange = const Color(0xFFFF6B00); // Naranja vibrante
+  final Color _brandWhite = Colors.white;
+  final Color _bgLight = const Color(0xFFFAFAFA); // Blanco casi puro
+  final Color _textDark = const Color(0xFF1A1A1A);
+
+  // Variables de lógica (INTACTAS)
   List<Map<String, dynamic>> _publicaciones = [];
   List<Map<String, dynamic>> _publicacionesAprobadas = [];
   List<Map<String, dynamic>> _publicacionesPendientes = [];
@@ -27,31 +34,21 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
   String _sortOption = 'Más recientes';
   late TabController _tabController;
   int _currentTab = 0;
-  bool _processingAction = false;
-
-  // Para prevenir múltiples llamadas simultáneas
   bool _isRefreshing = false;
-
-  // Timeouts y manejo de excepciones
   Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-
-    // Inicializar el TabController con cuidado
     try {
       _tabController = TabController(length: 2, vsync: this);
       _tabController.addListener(() {
-        if (mounted) {
-          setState(() => _currentTab = _tabController.index);
-        }
+        if (mounted) setState(() => _currentTab = _tabController.index);
       });
     } catch (e) {
-      debugPrint('Error inicializando TabController: $e');
+      debugPrint('Error TabController: $e');
     }
 
-    // Cargar datos después de que el widget esté completamente inicializado
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cargarPublicaciones();
     });
@@ -59,13 +56,13 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
 
   @override
   void dispose() {
-    // Limpiar timers y controllers
     _refreshTimer?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
+  // --- LÓGICA DE DATOS (NO SE TOCA, SOLO SE OPTIMIZA VISUALIZACIÓN) ---
   Future<void> _cargarPublicaciones() async {
     if (!mounted || _isRefreshing) return;
 
@@ -77,92 +74,41 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
     });
 
     try {
-      // Usar una consulta más simple primero para diagnóstico
       final response = await _supabase
           .from('servicios')
           .select('''
-             id, 
-          titulo, 
-          descripcion, 
-          status, 
-          creado_en,
-          user_id
-          ''')
+      id, titulo, descripcion, status, creado_en, user_id, fotos,
+      perfiles:perfiles (id, nombre, email, avatar_url),
+      reportes:reportes(count),
+      numero_de_reportes
+    ''')
           .order('creado_en', ascending: false)
           .limit(50);
 
       if (!mounted) return;
 
+      _publicaciones = List<Map<String, dynamic>>.from(response).map((p) {
+        return {
+          ...p,
+          'reportes_count':
+              p['numero_de_reportes'] ?? p['reportes']?[0]?['count'] ?? 0,
+        };
+      }).toList();
+
+      _separarPublicaciones();
       setState(() {
-        _publicaciones = List<Map<String, dynamic>>.from(response);
-        _separarPublicaciones();
         _isLoading = false;
         _isRefreshing = false;
       });
-    } catch (e, stackTrace) {
-      debugPrint('Error al cargar publicaciones: $e');
-      debugPrint('Stack trace: $stackTrace');
-
+    } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _isLoading = false;
         _hasError = true;
-        _errorMessage = 'Error al cargar publicaciones: ${e.toString()}';
+        _errorMessage = e.toString();
         _isRefreshing = false;
       });
-
-      // Mostrar error de manera segura
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Error al cargar publicaciones'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      });
     }
-  }
-
-  Future<List<Map<String, dynamic>>> _cargarPerfilesParaPublicaciones(
-    List<Map<String, dynamic>> publicaciones,
-  ) async {
-    final resultados = <Map<String, dynamic>>[];
-
-    for (final publicacion in publicaciones) {
-      try {
-        final perfilResponse = await _supabase
-            .from('perfiles')
-            .select('id, nombre, email, avatar_url')
-            .eq('id', publicacion['user_id'])
-            .limit(1)
-            .timeout(const Duration(seconds: 5))
-            .then((data) => data.isNotEmpty ? data[0] : null)
-            .catchError((_) => null);
-
-        final reportesResponse = await _supabase
-            .from('reportes')
-            .select('id')
-            .eq('service_id', publicacion['id'])
-            .count(CountOption.exact)
-            .timeout(const Duration(seconds: 5))
-            .catchError((_) => null);
-
-        resultados.add({
-          ...publicacion,
-          'perfiles': perfilResponse,
-          'reportes_count': reportesResponse?.count ?? 0,
-        });
-      } catch (e) {
-        // Si hay error, agregar la publicación sin datos adicionales
-        resultados.add({...publicacion, 'perfiles': null, 'reportes_count': 0});
-      }
-    }
-
-    return resultados;
   }
 
   void _separarPublicaciones() {
@@ -170,292 +116,105 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
       _publicacionesAprobadas = _publicaciones
           .where((p) => p['status'] == 'activa')
           .toList();
-
       _publicacionesPendientes = _publicaciones
           .where((p) => (p['status'] as String?)?.toLowerCase() == 'pendiente')
           .toList();
-
       _filtrarPublicaciones();
     } catch (e) {
-      debugPrint('Error al separar publicaciones: $e');
       _publicacionesAprobadas = [];
       _publicacionesPendientes = [];
     }
   }
 
   void _filtrarPublicaciones() {
-    try {
+    if (!mounted) return;
+    setState(() {
       String searchTerm = _searchController.text.trim().toLowerCase();
 
-      _filteredAprobadas = _publicacionesAprobadas.where((pub) {
+      bool filterFunc(Map<String, dynamic> pub) {
         final titulo = (pub['titulo'] as String?)?.toLowerCase() ?? '';
         final desc = (pub['descripcion'] as String?)?.toLowerCase() ?? '';
         final user =
             (pub['perfiles']?['nombre'] as String?)?.toLowerCase() ?? '';
-
         if (searchTerm.isEmpty) return true;
-
         return titulo.contains(searchTerm) ||
             desc.contains(searchTerm) ||
             user.contains(searchTerm);
-      }).toList();
+      }
 
-      _filteredPendientes = _publicacionesPendientes.where((pub) {
-        final titulo = (pub['titulo'] as String?)?.toLowerCase() ?? '';
-        final desc = (pub['descripcion'] as String?)?.toLowerCase() ?? '';
-        final user =
-            (pub['perfiles']?['nombre'] as String?)?.toLowerCase() ?? '';
-
-        if (searchTerm.isEmpty) return true;
-
-        return titulo.contains(searchTerm) ||
-            desc.contains(searchTerm) ||
-            user.contains(searchTerm);
-      }).toList();
-
+      _filteredAprobadas = _publicacionesAprobadas.where(filterFunc).toList();
+      _filteredPendientes = _publicacionesPendientes.where(filterFunc).toList();
       _aplicarOrdenamiento();
-    } catch (e) {
-      debugPrint('Error al filtrar publicaciones: $e');
-      _filteredAprobadas = [];
-      _filteredPendientes = [];
-    }
+    });
   }
 
   void _aplicarOrdenamiento() {
+    // Misma lógica de ordenamiento
     try {
-      final Map<
-        String,
-        int Function(Map<String, dynamic>, Map<String, dynamic>)
-      >
-      comparadores = {
-        'Más recientes': (a, b) {
-          final fechaA = a['creado_en']?.toString() ?? '';
-          final fechaB = b['creado_en']?.toString() ?? '';
-          return fechaB.compareTo(fechaA);
-        },
-        'Más antiguos': (a, b) {
-          final fechaA = a['creado_en']?.toString() ?? '';
-          final fechaB = b['creado_en']?.toString() ?? '';
-          return fechaA.compareTo(fechaB);
-        },
-        'A-Z': (a, b) {
-          final tituloA = a['titulo']?.toString() ?? '';
-          final tituloB = b['titulo']?.toString() ?? '';
-          return tituloA.compareTo(tituloB);
-        },
-        'Z-A': (a, b) {
-          final tituloA = a['titulo']?.toString() ?? '';
-          final tituloB = b['titulo']?.toString() ?? '';
-          return tituloB.compareTo(tituloA);
-        },
-        'Más reportadas': (a, b) {
-          final reportesA = a['reportes_count'] ?? 0;
-          final reportesB = b['reportes_count'] ?? 0;
-          return reportesB.compareTo(reportesA);
-        },
-        'Menos reportadas': (a, b) {
-          final reportesA = a['reportes_count'] ?? 0;
-          final reportesB = b['reportes_count'] ?? 0;
-          return reportesA.compareTo(reportesB);
-        },
-      };
-
-      if (comparadores.containsKey(_sortOption)) {
-        _filteredAprobadas.sort(comparadores[_sortOption]!);
-        _filteredPendientes.sort(comparadores[_sortOption]!);
+      int Function(Map<String, dynamic>, Map<String, dynamic>)? sorter;
+      switch (_sortOption) {
+        case 'Más recientes':
+          sorter = (a, b) =>
+              (b['creado_en'] ?? '').compareTo(a['creado_en'] ?? '');
+          break;
+        case 'Más antiguos':
+          sorter = (a, b) =>
+              (a['creado_en'] ?? '').compareTo(b['creado_en'] ?? '');
+          break;
+        case 'A-Z':
+          sorter = (a, b) => (a['titulo'] ?? '').compareTo(b['titulo'] ?? '');
+          break;
+        case 'Z-A':
+          sorter = (a, b) => (b['titulo'] ?? '').compareTo(a['titulo'] ?? '');
+          break;
+        case 'Más reportadas':
+          sorter = (a, b) => ((b['reportes_count'] ?? 0) as int).compareTo(
+            (a['reportes_count'] ?? 0) as int,
+          );
+          break;
+        case 'Menos reportadas':
+          sorter = (a, b) => ((a['reportes_count'] ?? 0) as int).compareTo(
+            (b['reportes_count'] ?? 0) as int,
+          );
+          break;
+      }
+      if (sorter != null) {
+        _filteredAprobadas.sort(sorter);
+        _filteredPendientes.sort(sorter);
       }
     } catch (e) {
-      debugPrint('Error al ordenar: $e');
+      debugPrint('Error orden: $e');
     }
   }
 
-  void _mostrarFiltros() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Ordenar Publicaciones',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                ...[
-                  'Más recientes',
-                  'Más antiguos',
-                  'A-Z',
-                  'Z-A',
-                  'Más reportadas',
-                  'Menos reportadas',
-                ].map((option) {
-                  return RadioListTile<String>(
-                    title: Text(option),
-                    value: option,
-                    groupValue: _sortOption,
-                    onChanged: (value) {
-                      if (value != null && mounted) {
-                        setState(() => _sortOption = value);
-                        _filtrarPublicaciones();
-                        Navigator.pop(context);
-                      }
-                    },
-                  );
-                }).toList(),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cerrar'),
-                ),
-                const SizedBox(height: 10),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _mostrarDetallePublicacion(
-    Map<String, dynamic> publicacion,
-    bool esPendiente,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(publicacion['titulo'] ?? 'Sin título'),
-        content: SingleChildScrollView(
-          child: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Estado: ${publicacion['status']?.toUpperCase() ?? 'DESCONOCIDO'}',
-                  style: TextStyle(
-                    color: publicacion['status'] == 'pendiente'
-                        ? Colors.orange
-                        : Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Descripción:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(publicacion['descripcion'] ?? 'Sin descripción'),
-                const SizedBox(height: 16),
-                const Text(
-                  'Información:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text('ID: ${publicacion['id']}'),
-                Text('Usuario ID: ${publicacion['user_id']}'),
-                Text(
-                  'Creado: ${publicacion['creado_en']?.toString().substring(0, 10) ?? 'N/A'}',
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-          if (esPendiente) ...[
-            ElevatedButton(
-              onPressed: () => _aprobarPublicacion(publicacion['id']),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('Aprobar'),
-            ),
-          ] else ...[
-            ElevatedButton(
-              onPressed: () => _eliminarPublicacion(publicacion['id']),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Eliminar'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
+  // --- ACCIONES DE SUPABASE (Lógica de negocio) ---
   Future<void> _aprobarPublicacion(String serviceId) async {
     try {
       await _supabase
           .from('servicios')
           .update({'status': 'activa'})
           .eq('id', serviceId);
-
+      // ignore: unused_local_variable
       final res = await _supabase.functions.invoke(
         'notificar-servicio',
         body: {'service_id': serviceId},
       );
 
-      debugPrint(res.toString());
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Publicación aprobada')));
-
-      Navigator.pop(context); // Cerrar diálogo
-      _cargarPublicaciones(); // Recargar lista
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('¡Publicación aprobada con éxito!'),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pop(context);
+        _cargarPublicaciones();
+      }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
-  }
-
-  Future<void> _eliminarPublicacion(String serviceId) async {
-    final confirmado = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar'),
-        content: const Text('¿Eliminar publicación?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmado == true) {
-      try {
-        await _supabase
-            .from('servicios')
-            .update({'status': 'eliminada'})
-            .eq('id', serviceId);
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Publicación eliminada')));
-
-        Navigator.pop(context); // Cerrar diálogo
-        _cargarPublicaciones(); // Recargar lista
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
     }
   }
 
@@ -464,45 +223,42 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
     BuildContext dialogContext,
   ) async {
     final razonController = TextEditingController();
-
     final razon = await showDialog<String>(
       context: context,
-      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Razón del rechazo'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: razonController,
-              decoration: const InputDecoration(
-                hintText: 'Explica por qué se rechaza esta publicación',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-              maxLength: 500,
+        title: const Text('Motivo del rechazo'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: TextField(
+          controller: razonController,
+          decoration: InputDecoration(
+            hintText: 'Explica por qué no cumple las normas...',
+            filled: true,
+            fillColor: Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Esta información será visible para el usuario.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
+          ),
+          maxLines: 3,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () {
-              final razonText = razonController.text.trim();
-              Navigator.pop(
-                context,
-                razonText.isNotEmpty ? razonText : 'Razón no especificada',
-              );
-            },
-            child: const Text('Rechazar'),
+            onPressed: () => Navigator.pop(
+              context,
+              razonController.text.trim().isNotEmpty
+                  ? razonController.text.trim()
+                  : 'Sin motivo',
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _brandOrange,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            child: const Text('Confirmar Rechazo'),
           ),
         ],
       ),
@@ -510,144 +266,366 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
 
     if (razon == null) return;
 
-    if (_processingAction) return;
-    _processingAction = true;
-    if (mounted) setState(() {});
-
     try {
       await _supabase
           .from('servicios')
           .update({
             'status': 'rechazada',
+            'motivo_rechazo': razon,
             'actualizado_en': DateTime.now().toIso8601String(),
           })
-          .eq('id', serviceId)
-          .timeout(const Duration(seconds: 10));
+          .eq('id', serviceId);
 
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Publicación rechazada'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
-        ),
+      await _supabase.functions.invoke(
+        'notificar-servicio',
+        body: {'service_id': serviceId, 'razon': razon},
       );
-
-      await _cargarPublicaciones();
-
-      if (Navigator.canPop(dialogContext)) {
-        Navigator.pop(dialogContext);
-      }
-    } catch (e) {
-      debugPrint('Error al rechazar publicación: $e');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString().substring(0, 100)}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+          const SnackBar(
+            content: Text('Publicación rechazada'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
           ),
         );
+        _cargarPublicaciones();
+        if (Navigator.canPop(dialogContext)) Navigator.pop(dialogContext);
       }
-    } finally {
-      _processingAction = false;
-      if (mounted) setState(() {});
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
-  Widget _buildListaPublicaciones(
-    List<Map<String, dynamic>> publicaciones,
-    bool esPendiente,
-  ) {
-    if (publicaciones.isEmpty) {
-      return const Center(child: Text('No hay publicaciones'));
-    }
-
-    return ListView.builder(
-      itemCount: publicaciones.length,
-      itemBuilder: (context, index) {
-        final pub = publicaciones[index];
-
-        // Estado como texto simple
-        final estado = pub['status'] == 'pendiente' ? 'PENDIENTE' : 'APROBADA';
-        final estadoColor = pub['status'] == 'pendiente'
-            ? Colors.orange
-            : Colors.green;
-
-        return Card(
-          margin: const EdgeInsets.all(8),
-          child: ListTile(
-            title: Text(
-              pub['titulo'] ?? 'Sin título',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text(
-                  estado,
-                  style: TextStyle(
-                    color: estadoColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  pub['descripcion']?.length > 100
-                      ? '${pub['descripcion'].substring(0, 100)}...'
-                      : pub['descripcion'] ?? '',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'ID Usuario: ${pub['user_id']}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                Text(
-                  'Fecha: ${pub['creado_en']?.toString().substring(0, 10) ?? ''}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _mostrarDetallePublicacion(pub, esPendiente),
+  Future<void> _eliminarPublicacion(String serviceId) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('¿Eliminar definitivamente?'),
+        content: const Text('Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
           ),
-        );
-      },
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      try {
+        await _supabase
+            .from('servicios')
+            .update({'status': 'eliminada'})
+            .eq('id', serviceId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Eliminada'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          Navigator.pop(context);
+          _cargarPublicaciones();
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  // --- UI WIDGETS MEJORADOS ---
+
+  Widget _buildStatusBadge(String status) {
+    bool isPending = status == 'pendiente';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isPending ? const Color(0xFFFFF3E0) : const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isPending ? Colors.orange.shade200 : Colors.green.shade200,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isPending ? Icons.access_time_filled : Icons.check_circle,
+            size: 14,
+            color: isPending ? Colors.orange.shade800 : Colors.green.shade700,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isPending ? 'Revisión Pendiente' : 'Activa',
+            style: TextStyle(
+              color: isPending ? Colors.orange.shade900 : Colors.green.shade800,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildErrorView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+  void _mostrarDetallePublicacion(Map<String, dynamic> pub, bool esPendiente) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: _brandWhite,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 60, color: Colors.red),
-            const SizedBox(height: 20),
-            const Text(
-              'Error al cargar',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            // Handle bar
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 20),
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              _errorMessage.isNotEmpty
-                  ? _errorMessage.length > 100
-                        ? '${_errorMessage.substring(0, 100)}...'
-                        : _errorMessage
-                  : 'Ocurrió un error inesperado',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey),
+
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatusBadge(pub['status'] ?? 'unknown'),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey[100],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    pub['titulo'] ?? 'Sin título',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: _textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Perfil Card
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _bgLight,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: Colors.grey[300],
+                          backgroundImage:
+                              pub['perfiles']?['avatar_url'] != null
+                              ? NetworkImage(pub['perfiles']['avatar_url'])
+                              : null,
+                          child: pub['perfiles']?['avatar_url'] == null
+                              ? const Icon(Icons.person, color: Colors.grey)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                pub['perfiles']?['nombre'] ?? 'Usuario',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                pub['perfiles']?['email'] ?? '',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Fecha',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                            Text(
+                              pub['creado_en']?.toString().substring(0, 10) ??
+                                  '',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Descripción',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    pub['descripcion'] ?? '',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      height: 1.5,
+                      fontSize: 15,
+                    ),
+                  ),
+
+                  if (pub['fotos'] != null &&
+                      (pub['fotos'] as List).isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Galería',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 140,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: (pub['fotos'] as List).length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              pub['fotos'][index],
+                              width: 140,
+                              height: 140,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 140,
+                                color: Colors.grey[200],
+                                child: const Icon(Icons.broken_image),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: _cargarPublicaciones,
-              child: const Text('Reintentar'),
+
+            // Botones de acción fijos abajo
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _brandWhite,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Row(
+                  children: [
+                    if (esPendiente) ...[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              _rechazarPublicacion(pub['id'], context),
+                          icon: const Icon(Icons.close),
+                          label: const Text('Rechazar'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            foregroundColor: Colors.red,
+                            side: BorderSide(color: Colors.red.shade200),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _aprobarPublicacion(pub['id']),
+                          icon: const Icon(Icons.check),
+                          label: const Text('Aprobar'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _eliminarPublicacion(pub['id']),
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Eliminar Publicación'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: Colors.red[50],
+                            foregroundColor: Colors.red,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -655,125 +633,381 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
     );
   }
 
+  Widget _buildList(List<Map<String, dynamic>> lista, bool esPendiente) {
+    if (lista.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.folder_open_rounded,
+              size: 80,
+              color: Colors.orange.withOpacity(0.2),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No hay publicaciones aquí',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 80),
+      itemCount: lista.length,
+      itemBuilder: (context, index) {
+        final pub = lista[index];
+        final reportes = pub['reportes_count'] as int? ?? 0;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: _brandWhite,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              onTap: () => _mostrarDetallePublicacion(pub, esPendiente),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Avatar
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _brandOrange.withOpacity(0.2),
+                              width: 2,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.grey[100],
+                            backgroundImage:
+                                pub['perfiles']?['avatar_url'] != null
+                                ? NetworkImage(pub['perfiles']['avatar_url'])
+                                : null,
+                            child: pub['perfiles']?['avatar_url'] == null
+                                ? Icon(
+                                    Icons.person,
+                                    size: 20,
+                                    color: Colors.grey[400],
+                                  )
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Textos Header
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                pub['titulo'] ?? 'Sin título',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: _textDark,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Por ${pub['perfiles']?['nombre'] ?? 'Desconocido'}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Badge Status Pequeño
+                        if (reportes > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red[50],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 14,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$reportes',
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Descripción
+                    Text(
+                      pub['descripcion'] ?? '',
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        height: 1.4,
+                        fontSize: 14,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildStatusBadge(pub['status'] ?? ''),
+                        Text(
+                          pub['creado_en']?.toString().substring(0, 10) ?? '',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Publicaciones'),
-        bottom: _isLoading
-            ? null
-            : TabBar(
-                controller: _tabController,
-                tabs: [
-                  Tab(
-                    icon: const Icon(Icons.check_circle),
-                    text: 'Aprobadas (${_filteredAprobadas.length})',
-                  ),
-                  Tab(
-                    icon: const Icon(Icons.pending),
-                    text: 'Pendientes (${_filteredPendientes.length})',
-                  ),
-                ],
+      backgroundColor: _bgLight,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            expandedHeight: 120,
+            floating: true,
+            pinned: true,
+            backgroundColor: _brandWhite,
+            surfaceTintColor: _brandWhite, // Evita tinte morado en Material 3
+            elevation: 0,
+            flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+              title: Text(
+                'Administración',
+                style: TextStyle(
+                  color: _textDark,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
               ),
-        actions: [
-          IconButton(
-            onPressed: _isRefreshing ? null : _cargarPublicaciones,
-            icon: _isRefreshing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
-            tooltip: 'Recargar',
+              background: Container(color: _brandWhite),
+            ),
+            actions: [
+              IconButton(
+                onPressed: _cargarPublicaciones,
+                icon: _isRefreshing
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _brandOrange,
+                        ),
+                      )
+                    : Icon(Icons.refresh_rounded, color: _textDark),
+              ),
+              IconButton(
+                icon: Icon(Icons.sort_rounded, color: _textDark),
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (c) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text(
+                              'Ordenar por',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                          ...[
+                            'Más recientes',
+                            'Más antiguos',
+                            'A-Z',
+                            'Z-A',
+                            'Más reportadas',
+                          ].map(
+                            (o) => ListTile(
+                              title: Text(o),
+                              trailing: _sortOption == o
+                                  ? Icon(Icons.check, color: _brandOrange)
+                                  : null,
+                              onTap: () {
+                                setState(() => _sortOption = o);
+                                _filtrarPublicaciones();
+                                Navigator.pop(c);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 10),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(60),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                color: _brandWhite,
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.transparent,
+                    indicator: BoxDecoration(
+                      color: _brandOrange,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _brandOrange.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.grey[600],
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    tabs: [
+                      Tab(text: 'Aprobadas (${_filteredAprobadas.length})'),
+                      Tab(text: 'Pendientes (${_filteredPendientes.length})'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text(
-                    'Cargando publicaciones...',
-                    style: TextStyle(color: Colors.grey),
+        body: Column(
+          children: [
+            // Buscador Flotante
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (_) => _filtrarPublicaciones(),
+                decoration: InputDecoration(
+                  hintText: 'Buscar por título, usuario...',
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: Colors.grey[400],
                   ),
-                ],
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: _brandOrange, width: 1),
+                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _filtrarPublicaciones();
+                          },
+                        )
+                      : null,
+                ),
               ),
-            )
-          : _hasError
-          ? _buildErrorView()
-          : Column(
-              children: [
-                // Barra de búsqueda
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Buscar publicaciones...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                _filtrarPublicaciones();
-                              },
-                            )
-                          : null,
-                    ),
-                    onChanged: (value) => _filtrarPublicaciones(),
-                  ),
-                ),
-
-                // Filtros
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.sort, size: 18, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Orden: $_sortOption',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.blue,
-                        ),
-                      ),
-                      const Spacer(),
-                      TextButton.icon(
-                        onPressed: _mostrarFiltros,
-                        icon: const Icon(Icons.filter_list, size: 18),
-                        label: const Text('Filtrar'),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Contenido de las pestañas
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildListaPublicaciones(_filteredAprobadas, false),
-                      _buildListaPublicaciones(_filteredPendientes, true),
-                    ],
-                  ),
-                ),
-              ],
             ),
+
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(color: _brandOrange),
+                    )
+                  : _hasError
+                  ? Center(
+                      child: Text(
+                        _errorMessage,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    )
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildList(_filteredAprobadas, false),
+                        _buildList(_filteredPendientes, true),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

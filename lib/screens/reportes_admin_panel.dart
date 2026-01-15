@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'info_servicio.dart';
 
 class ReportesAdminScreen extends StatefulWidget {
   const ReportesAdminScreen({super.key});
@@ -10,6 +11,19 @@ class ReportesAdminScreen extends StatefulWidget {
 
 class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
+
+  // --- PALETA DE COLORES MEJORADA ---
+  final Color _brandOrange = const Color(0xFFFF6B00);
+  final Color _brandWhite = Colors.white;
+  final Color _bgLight = const Color(0xFFFAFAFA);
+  final Color _textDark = const Color(0xFF1A1A1A);
+
+  // Colores para cada tab
+  final Color _pendienteColor = const Color(0xFFFF6B00); // Naranja
+  final Color _resueltoColor = const Color(0xFF4CAF50); // Verde
+  final Color _todosColor = const Color(0xFF2196F3); // Azul
+
+  // Variables de lógica (INTACTAS)
   List<Map<String, dynamic>> _reportes = [];
   List<Map<String, dynamic>> _filteredReportes = [];
   bool _isLoading = true;
@@ -18,12 +32,23 @@ class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
   String _filtroStatus = 'pendiente';
   bool _processingAction = false;
 
+  late PageController _pageController;
+  int _currentPage = 0;
+
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: 0);
     _cargarReportes();
   }
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  // --- LÓGICA DE DATOS (NO TOCAR) ---
   Future<void> _cargarReportes() async {
     if (!mounted) return;
 
@@ -34,38 +59,66 @@ class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
     });
 
     try {
-      // Consulta simplificada - solo datos esenciales
       final response = await _supabase
           .from('reportes')
           .select('''
-            id, 
-            razones, 
-            status, 
-            creado_en, 
-            service_id, 
-            reporter_id
-          ''')
+          id, 
+          razones, 
+          status, 
+          creado_en, 
+          service_id, 
+          reporter_id
+        ''')
           .order('creado_en', ascending: false)
-          .limit(100) // Limitar resultados
+          .limit(100)
           .timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
 
-      // Cargar datos relacionados por separado
       final reportesConDatos = await _cargarDatosRelacionados(
         List<Map<String, dynamic>>.from(response),
       );
 
       setState(() {
         _reportes = reportesConDatos;
-        _filteredReportes = _reportes;
         _isLoading = false;
+
+        // 🔥 ACTUALIZAR FILTRO BASADO EN LA PÁGINA ACTUAL
+        switch (_currentPage) {
+          case 0: // Pendientes
+            _filtroStatus = 'pendiente';
+            _filteredReportes = _reportes
+                .where((r) => r['status'] == 'pendiente')
+                .toList();
+            break;
+          case 1: // Resueltos (sin desactivar)
+            _filtroStatus = 'resuelta';
+            _filteredReportes = _reportes.where((r) {
+              final servicioStatus = r['servicio']?['status'];
+              return r['status'] == 'resuelta' && servicioStatus != 'rechazada';
+            }).toList();
+            break;
+          case 2: // Desactivados
+            _filtroStatus = 'desactivado';
+            _filteredReportes = _reportes.where((r) {
+              final servicioStatus = r['servicio']?['status'];
+              return r['status'] == 'resuelta' && servicioStatus == 'rechazada';
+            }).toList();
+            break;
+          case 3: // Todos
+            _filtroStatus = 'todos';
+            _filteredReportes = _reportes;
+            break;
+          default:
+            _filtroStatus = 'pendiente';
+            _filteredReportes = _reportes
+                .where((r) => r['status'] == 'pendiente')
+                .toList();
+        }
       });
     } catch (e) {
       debugPrint('Error al cargar reportes: $e');
-
       if (!mounted) return;
-
       setState(() {
         _isLoading = false;
         _hasError = true;
@@ -81,27 +134,22 @@ class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
 
     for (final reporte in reportes) {
       try {
-        // Cargar servicio
         final servicioResponse = await _supabase
             .from('servicios')
-            .select('id, titulo, descripcion, user_id, status')
+            .select('id, titulo, descripcion, user_id, status, fotos')
             .eq('id', reporte['service_id'])
             .limit(1)
-            .timeout(const Duration(seconds: 5))
             .then((res) => res.isNotEmpty ? res[0] : null)
             .catchError((_) => null);
 
-        // Cargar reporter
         final reporterResponse = await _supabase
             .from('perfiles')
-            .select('id, nombre, email')
+            .select('id, nombre, email, avatar_url')
             .eq('id', reporte['reporter_id'])
             .limit(1)
-            .timeout(const Duration(seconds: 5))
             .then((res) => res.isNotEmpty ? res[0] : null)
             .catchError((_) => null);
 
-        // Cargar usuario reportado
         Map<String, dynamic>? usuarioReportado;
         if (servicioResponse != null && servicioResponse['user_id'] != null) {
           usuarioReportado = await _supabase
@@ -109,7 +157,6 @@ class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
               .select('id, nombre, email')
               .eq('id', servicioResponse['user_id'])
               .limit(1)
-              .timeout(const Duration(seconds: 5))
               .then((res) => res.isNotEmpty ? res[0] : null)
               .catchError((_) => null);
         }
@@ -121,70 +168,498 @@ class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
           'usuario_reportado': usuarioReportado,
         });
       } catch (e) {
-        debugPrint('Error cargando datos relacionados: $e');
         resultados.add(reporte);
       }
     }
-
     return resultados;
   }
 
   void _filtrarReportes(String status) {
-    try {
-      setState(() {
-        _filtroStatus = status;
-        if (status == 'todos') {
-          _filteredReportes = _reportes;
-        } else {
-          _filteredReportes = _reportes
-              .where((reporte) => reporte['status'] == status)
-              .toList();
-        }
-      });
-    } catch (e) {
-      debugPrint('Error al filtrar reportes: $e');
+    setState(() {
+      _filtroStatus = status;
+      if (status == 'todos') {
+        _filteredReportes = _reportes;
+      } else if (status == 'desactivado') {
+        // 🔥 NUEVO: Filtrar solo los que tienen servicio desactivado
+        _filteredReportes = _reportes.where((reporte) {
+          final servicioStatus = reporte['servicio']?['status'];
+          return reporte['status'] == 'resuelta' &&
+              servicioStatus == 'rechazada';
+        }).toList();
+      } else if (status == 'resuelta') {
+        // 🔥 ACTUALIZADO: Solo los resueltos SIN desactivar
+        _filteredReportes = _reportes.where((reporte) {
+          final servicioStatus = reporte['servicio']?['status'];
+          return reporte['status'] == 'resuelta' &&
+              servicioStatus != 'rechazada';
+        }).toList();
+      } else {
+        _filteredReportes = _reportes
+            .where((reporte) => reporte['status'] == status)
+            .toList();
+      }
+    });
+  }
+
+  void _cambiarPagina(int index) {
+    // 🔥 VERIFICAR QUE EL CONTROLLER ESTÉ ATTACHED
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
   Future<void> _atenderReporte(String reporteId) async {
     if (_processingAction) return;
-
-    _processingAction = true;
-    if (mounted) setState(() {});
+    setState(() => _processingAction = true);
 
     try {
       await _supabase
           .from('reportes')
           .update({'status': 'resuelta'})
-          .eq('id', reporteId)
-          .timeout(const Duration(seconds: 10));
+          .eq('id', reporteId);
 
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Reporte marcado como resuelto'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: const Text('Reporte marcado como resuelto'),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
         ),
       );
-
       await _cargarReportes();
     } catch (e) {
-      debugPrint('Error al atender reporte: $e');
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString().substring(0, 100)}'),
+          const SnackBar(
+            content: Text('Error al actualizar'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
-      _processingAction = false;
-      if (mounted) setState(() {});
+      if (mounted) setState(() => _processingAction = false);
     }
   }
+
+  // --- UI WIDGETS MEJORADOS ---
+  Color _getColorForStatus(String status) {
+    switch (status) {
+      case 'pendiente':
+        return _pendienteColor;
+      case 'resuelta':
+        return _resueltoColor;
+      case 'desactivado': // 🔥 NUEVO
+        return Colors.red.shade600;
+      default:
+        return _todosColor;
+    }
+  }
+
+  Widget _buildStatusBadge(String status, {Map<String, dynamic>? servicio}) {
+    // 🔥 Verificar si el servicio está desactivado
+    final servicioDesactivado = servicio?['status'] == 'rechazada';
+
+    if (servicioDesactivado && status == 'resuelta') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.red[50],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.red.shade300, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.block, size: 14, color: Colors.red.shade700),
+            const SizedBox(width: 6),
+            Text(
+              'Desactivado',
+              style: TextStyle(
+                color: Colors.red.shade900,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    bool isPending = status == 'pendiente';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isPending ? const Color(0xFFFFF3E0) : const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isPending ? Colors.orange.shade200 : Colors.green.shade200,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isPending ? Icons.warning_amber_rounded : Icons.check_circle,
+            size: 14,
+            color: isPending ? Colors.orange.shade800 : Colors.green.shade700,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isPending ? 'Pendiente' : 'Resuelto',
+            style: TextStyle(
+              color: isPending ? Colors.orange.shade900 : Colors.green.shade800,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Tabs con colores diferentes y animación mejorada
+  Widget _buildFilterTab(String label, String value, int index) {
+    bool isSelected = _currentPage == index;
+    Color tabColor = value == 'pendiente'
+        ? _pendienteColor
+        : value == 'resuelta'
+        ? _resueltoColor
+        : value == 'desactivado' // 🔥 NUEVO
+        ? Colors.red.shade600
+        : _todosColor;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _cambiarPagina(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          decoration: BoxDecoration(
+            color: isSelected ? tabColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: tabColor.withOpacity(0.4),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSelected)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(
+                    value == 'pendiente'
+                        ? Icons.pending_actions
+                        : value == 'resuelta'
+                        ? Icons.check_circle
+                        : value == 'desactivado' // 🔥 NUEVO
+                        ? Icons.block
+                        : Icons.list_alt,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildList(List<Map<String, dynamic>> lista) {
+    if (lista.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.folder_open_rounded,
+              size: 80,
+              color: _getColorForStatus(_filtroStatus).withOpacity(0.2),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No hay reportes aquí',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 80),
+      itemCount: lista.length,
+      itemBuilder: (context, index) {
+        final reporte = lista[index];
+        final servicio = reporte['servicio'] is Map
+            ? reporte['servicio']
+            : null;
+        final reporter = reporte['reporter'] is Map
+            ? reporte['reporter']
+            : null;
+        final usuarioReportado = reporte['usuario_reportado'] is Map
+            ? reporte['usuario_reportado']
+            : null; // 👈 NUEVO
+        final status = reporte['status'] ?? 'pendiente';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: _brandWhite,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _getColorForStatus(status).withOpacity(0.2),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _getColorForStatus(status).withOpacity(0.08),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              onTap: () => _mostrarDetalleReporte(reporte),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 🔥 NUEVO: Encabezado con servicio y estado
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Foto del servicio
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _getColorForStatus(
+                                status,
+                              ).withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child:
+                                servicio?['fotos'] != null &&
+                                    (servicio!['fotos'] as List).isNotEmpty
+                                ? Image.network(
+                                    servicio['fotos'][0],
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: Colors.grey[200],
+                                      child: Icon(
+                                        Icons.image_not_supported_rounded,
+                                        color: Colors.grey[400],
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    color: Colors.grey[200],
+                                    child: Icon(
+                                      Icons.image_not_supported_rounded,
+                                      color: Colors.grey[400],
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                servicio?['titulo'] ?? 'Servicio Eliminado',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: _textDark,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              // 🔥 NUEVO: Mostrar dueño del servicio
+                              if (usuarioReportado != null)
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.person_outline,
+                                      size: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'Publicado por ${usuarioReportado['nombre']}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                        _buildStatusBadge(status),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+
+                    // 🔥 NUEVO: Sección "Reportado por"
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.grey[100],
+                          backgroundImage: reporter?['avatar_url'] != null
+                              ? NetworkImage(reporter!['avatar_url'])
+                              : null,
+                          child: reporter?['avatar_url'] == null
+                              ? Icon(
+                                  Icons.person,
+                                  size: 16,
+                                  color: Colors.grey[400],
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Reportado por',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              Text(
+                                reporter?['nombre'] ?? 'Anónimo',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[800],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Motivo del reporte
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _bgLight,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'MOTIVO:',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[500],
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            reporte['razones']?.toString() ?? 'Sin razón',
+                            style: TextStyle(
+                              color: Colors.grey[800],
+                              fontSize: 14,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          reporte['creado_en']?.toString().substring(0, 10) ??
+                              '',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Reemplaza solo el método _mostrarDetalleReporte y _desactivarServicio
 
   void _mostrarDetalleReporte(Map<String, dynamic> reporte) {
     final servicio = reporte['servicio'] is Map ? reporte['servicio'] : null;
@@ -193,366 +668,517 @@ class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
         ? reporte['usuario_reportado']
         : null;
     final razon = reporte['razones']?.toString() ?? 'Sin razón especificada';
-    final fecha = reporte['creado_en']?.toString().substring(0, 10) ?? 'N/A';
+    final status = reporte['status'] ?? 'pendiente';
 
-    showDialog(
+    final servicioStatus = servicio?['status'] ?? '';
+    final servicioYaDesactivado = servicioStatus == 'rechazada';
+
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: !_processingAction,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Detalles del Reporte'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: _brandWhite,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          children: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 20),
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 children: [
-                  // Razon del reporte
-                  const Text(
-                    'Razón:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(razon),
-
-                  const SizedBox(height: 15),
-
-                  // Servicio reportado
-                  const Text(
-                    'Servicio Reportado:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 5),
-
-                  if (servicio != null) ...[
-                    InkWell(
-                      onTap: () {
-                        Navigator.pop(context);
-                        _mostrarDetalleServicio(servicio);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.blue),
-                          borderRadius: BorderRadius.circular(8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildStatusBadge(status),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey[100],
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              servicio['titulo']?.toString() ?? 'Sin título',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              servicio['descripcion']?.length > 100
-                                  ? '${servicio['descripcion'].toString().substring(0, 100)}...'
-                                  : servicio['descripcion']?.toString() ??
-                                        'Sin descripción',
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              'Estado: ${servicio['status']?.toUpperCase() ?? 'DESCONOCIDO'}',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Detalles del Reporte',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: _textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  if (servicioYaDesactivado)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.orange[700]),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Este servicio ya fue desactivado',
                               style: TextStyle(
-                                color: servicio['status'] == 'activa'
-                                    ? Colors.green
-                                    : servicio['status'] == 'pendiente'
-                                    ? Colors.orange
-                                    : Colors.red,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.orange[900],
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // 🔥 NUEVO: CARD COMPLETA DEL SERVICIO REPORTADO
+                  if (servicio != null) ...[
+                    Text(
+                      'Servicio Reportado',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: status == 'pendiente'
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DetalleServicioScreen(
+                                      servicioId: servicio['id'],
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _bgLight,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.grey.shade200,
+                              width: 2,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Imagen del servicio
+                              if (servicio['fotos'] != null &&
+                                  (servicio['fotos'] as List).isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    servicio['fotos'][0],
+                                    height: 180,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      height: 180,
+                                      color: Colors.grey[200],
+                                      child: Icon(
+                                        Icons.image_not_supported_rounded,
+                                        color: Colors.grey[400],
+                                        size: 50,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  height: 180,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    Icons.image_not_supported_rounded,
+                                    color: Colors.grey[400],
+                                    size: 50,
+                                  ),
+                                ),
+
+                              const SizedBox(height: 16),
+
+                              // Título del servicio
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.storefront_rounded,
+                                    size: 20,
+                                    color: _brandOrange,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      servicio['titulo'] ?? 'Sin título',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: _textDark,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Descripción del servicio
+                              Text(
+                                servicio['descripcion'] ?? 'Sin descripción',
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 14,
+                                  height: 1.5,
+                                ),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Dueño del servicio
+                              if (usuarioReportado != null)
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 20,
+                                        backgroundColor: Colors.grey[200],
+                                        child: Icon(
+                                          Icons.person,
+                                          color: Colors.grey[600],
+                                          size: 22,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Publicado por',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey[600],
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            Text(
+                                              usuarioReportado['nombre'] ??
+                                                  'Usuario',
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: _textDark,
+                                              ),
+                                            ),
+                                            if (usuarioReportado['email'] !=
+                                                null)
+                                              Text(
+                                                usuarioReportado['email'],
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              // Botón para ver completo
+                              if (status == 'pendiente') ...[
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Ver publicación completa',
+                                      style: TextStyle(
+                                        color: _brandOrange,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 16,
+                                      color: _brandOrange,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ] else ...[
-                    const Text(
-                      'Servicio no encontrado o eliminado',
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                    const SizedBox(height: 24),
                   ],
 
-                  const SizedBox(height: 15),
-
-                  // Usuarios involucrados
-                  const Text(
-                    'Usuarios Involucrados:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Usuario que reporta
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.person_outline,
-                        size: 16,
-                        color: Colors.blue,
+                  // Información de quien reportó
+                  if (reporter != null) ...[
+                    Text(
+                      'Reportado por',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _textDark,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Usuario que reporta:',
-                              style: TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                            Text(reporter?['nombre']?.toString() ?? 'Anónimo'),
-                            if (reporter?['email'] != null)
-                              Text(
-                                reporter!['email'],
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade100),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: Colors.grey[100],
+                            backgroundImage: reporter['avatar_url'] != null
+                                ? NetworkImage(reporter['avatar_url'])
+                                : null,
+                            child: reporter['avatar_url'] == null
+                                ? Icon(
+                                    Icons.person,
+                                    color: Colors.grey[400],
+                                    size: 28,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  reporter['nombre'] ?? 'Anónimo',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red[900],
+                                  ),
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Usuario reportado
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.person_off, size: 16, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Usuario reportado:',
-                              style: TextStyle(fontWeight: FontWeight.w500),
+                                if (reporter['email'] != null)
+                                  Text(
+                                    reporter['email'],
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.red[700],
+                                    ),
+                                  ),
+                              ],
                             ),
-                            Text(
-                              usuarioReportado?['nombre']?.toString() ??
-                                  'Desconocido',
-                            ),
-                            if (usuarioReportado?['email'] != null)
-                              Text(
-                                usuarioReportado!['email'],
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Razón del reporte
+                  Text(
+                    'Razón del Reporte',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: _textDark,
+                    ),
                   ),
-
-                  const SizedBox(height: 15),
-
-                  // Fecha
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today,
-                        size: 14,
-                        color: Colors.grey,
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade100),
+                    ),
+                    child: Text(
+                      razon,
+                      style: TextStyle(
+                        color: Colors.red[900],
+                        height: 1.5,
+                        fontSize: 15,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Reportado el: $fecha',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              if (_processingAction)
-                const Center(child: CircularProgressIndicator())
-              else ...[
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cerrar'),
-                ),
-                if (reporte['status'] == 'pendiente')
-                  ElevatedButton(
-                    onPressed: () {
-                      _atenderReporte(reporte['id']);
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                    ),
-                    child: const Text('Marcar como Resuelto'),
+
+            // Botones de acción
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _brandWhite,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
                   ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (servicio != null) {
-                      Navigator.pop(context);
-                      _mostrarDetalleServicio(servicio);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                  child: const Text('Ver Servicio'),
+                ],
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (status == 'pendiente')
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _atenderReporte(reporte['id']);
+                        },
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Marcar Resuelto'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          minimumSize: const Size(double.infinity, 50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+
+                    if (servicio != null && !servicioYaDesactivado) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _desactivarServicio(
+                            servicio['id'],
+                            reporte['id'],
+                          ),
+                          icon: const Icon(Icons.block),
+                          label: const Text('Desactivar Servicio'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            foregroundColor: Colors.red,
+                            side: BorderSide(color: Colors.red.shade200),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ],
-          );
-        },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _mostrarDetalleServicio(Map<String, dynamic> servicio) {
-    final _ = servicio['fotos'] is List
-        ? servicio['fotos'] as List<dynamic>
-        : [];
+  Future<void> _desactivarServicio(String serviceId, String reporteId) async {
+    Navigator.pop(context);
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(servicio['titulo']?.toString() ?? 'Servicio'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Información del servicio
-              Text(
-                servicio['descripcion']?.toString() ?? 'Sin descripción',
-                style: const TextStyle(fontSize: 14),
-              ),
+    String? motivo;
 
-              const SizedBox(height: 10),
-
-              // Estado del servicio
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: servicio['status'] == 'activa'
-                      ? Colors.green[50]
-                      : servicio['status'] == 'pendiente'
-                      ? Colors.orange[50]
-                      : Colors.red[50],
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: servicio['status'] == 'activa'
-                        ? Colors.green
-                        : servicio['status'] == 'pendiente'
-                        ? Colors.orange
-                        : Colors.red,
-                  ),
-                ),
-                child: Text(
-                  'Estado: ${servicio['status']?.toUpperCase() ?? 'DESCONOCIDO'}',
-                  style: TextStyle(
-                    color: servicio['status'] == 'activa'
-                        ? Colors.green[800]
-                        : servicio['status'] == 'pendiente'
-                        ? Colors.orange[800]
-                        : Colors.red[800],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              // Acciones
-              const Text(
-                'Acciones:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-
-              if (servicio['status'] == 'activa')
-                ElevatedButton(
-                  onPressed: () => _desactivarServicio(servicio['id']),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  child: const Text('Desactivar Servicio'),
-                )
-              else if (servicio['status'] == 'pendiente')
-                ElevatedButton(
-                  onPressed: () => _aprobarServicio(servicio['id']),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  child: const Text('Aprobar Servicio'),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _aprobarServicio(String serviceId) async {
-    try {
-      await _supabase
-          .from('servicios')
-          .update({
-            'status': 'activa',
-          }) // Cambia a 'activa' en lugar de 'aprobada'
-          .eq('id', serviceId)
-          .timeout(const Duration(seconds: 10));
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Servicio aprobado (activado)'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.pop(context); // Cerrar diálogo
-    } catch (e) {
-      debugPrint('Error al aprobar servicio: $e');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString().substring(0, 100)}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _desactivarServicio(String serviceId) async {
+    // 🔥 ARREGLADO: Dialog con scroll para evitar overflow
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Desactivar Servicio'),
-        content: const Text('¿Estás seguro de desactivar este servicio?'),
+        content: SingleChildScrollView(
+          // 👈 ESTO ARREGLA EL OVERFLOW
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Esta acción desactivará el servicio y notificará al usuario del motivo.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                onChanged: (value) => motivo = value,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo de la desactivación *',
+                  hintText: 'Ej: Contenido inapropiado',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                maxLength: 200,
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              if (motivo == null || motivo!.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Debes especificar un motivo'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(context, true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Desactivar'),
           ),
         ],
@@ -561,305 +1187,216 @@ class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
 
     if (confirmado != true) return;
 
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
     try {
+      // 1. Rechazar servicio
       await _supabase
           .from('servicios')
-          .update({'status': 'inactiva'}) // Cambia a 'inactiva'
-          .eq('id', serviceId)
-          .timeout(const Duration(seconds: 10));
+          .update({'status': 'rechazada'})
+          .eq('id', serviceId);
 
-      if (!mounted) return;
+      // 2. Marcar reporte como resuelto
+      await _supabase
+          .from('reportes')
+          .update({'status': 'resuelta'})
+          .eq('id', reporteId);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Servicio desactivado'),
-          backgroundColor: Colors.orange,
-        ),
+      // 🔥 DEBUGGING: Agregar logs
+      debugPrint('🔔 Enviando notificación...');
+      debugPrint('Service ID: $serviceId');
+      debugPrint('Motivo: ${motivo?.trim()}');
+
+      // 3. Notificar usuario
+      final response = await _supabase.functions.invoke(
+        'notificar-servicio',
+        body: {
+          'service_id': serviceId,
+          'razon': motivo?.trim() ?? 'No se especificó un motivo',
+          'tipo_accion': 'desactivar_por_reporte',
+        },
       );
 
-      Navigator.pop(context); // Cerrar diálogo
-    } catch (e) {
-      debugPrint('Error al desactivar servicio: $e');
+      // 🔥 DEBUGGING: Ver respuesta
+      debugPrint('📩 Respuesta de la función: ${response.data}');
 
-      if (mounted) {
+      if (!mounted) return;
+      Navigator.pop(context); // Cerrar loading
+
+      // Verificar respuesta
+      if (response.data != null && response.data['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString().substring(0, 100)}'),
-            backgroundColor: Colors.red,
+            content: const Text('✓ Servicio desactivado y usuario notificado'),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⚠ Servicio desactivado pero la notificación falló: ${response.data?['error'] ?? 'Error desconocido'}',
+            ),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
+
+      await _cargarReportes();
+    } catch (e) {
+      debugPrint('❌ Error al desactivar servicio: $e');
+
+      if (!mounted) return;
+      Navigator.pop(context); // Cerrar loading
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
-  }
-
-  Widget _buildReporteCard(Map<String, dynamic> reporte) {
-    final servicio = reporte['servicio'] is Map ? reporte['servicio'] : null;
-    final reporter = reporte['reporter'] is Map ? reporte['reporter'] : null;
-    final isPendiente = reporte['status'] == 'pendiente';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _mostrarDetalleReporte(reporte),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Título y estado
-              Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isPendiente ? Colors.orange : Colors.green,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      servicio?['titulo']?.toString() ??
-                          'Servicio no disponible',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    isPendiente ? 'PENDIENTE' : 'RESUELTO',
-                    style: TextStyle(
-                      color: isPendiente ? Colors.orange : Colors.green,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Razón del reporte
-              Text(
-                'Razón: ${reporte['razones']?.toString() ?? 'No especificada'}',
-                style: const TextStyle(fontSize: 14),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              const SizedBox(height: 8),
-
-              // Información de usuarios
-              Row(
-                children: [
-                  // Usuario que reporta
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.person_outline,
-                          size: 14,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            reporter?['nombre']?.toString() ?? 'Anónimo',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.blue,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Fecha
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 12,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          reporte['creado_en']?.toString().substring(0, 10) ??
-                              '',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 60, color: Colors.red),
-            const SizedBox(height: 20),
-            const Text(
-              'Error al cargar reportes',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _errorMessage,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: _cargarReportes,
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reportes'),
-        actions: [
-          IconButton(
-            onPressed: _processingAction ? null : _cargarReportes,
-            icon: _processingAction
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
+      backgroundColor: _bgLight,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            expandedHeight: 120,
+            floating: true,
+            pinned: true,
+            backgroundColor: _brandWhite,
+            surfaceTintColor: _brandWhite,
+            elevation: 0,
+            flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+              title: Text(
+                'Reportes',
+                style: TextStyle(
+                  color: _textDark,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+              background: Container(color: _brandWhite),
+            ),
+            actions: [
+              IconButton(
+                onPressed: _processingAction ? null : _cargarReportes,
+                icon: _processingAction
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _brandOrange,
+                        ),
+                      )
+                    : Icon(Icons.refresh_rounded, color: _textDark),
+              ),
+              const SizedBox(width: 10),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(60),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                color: _brandWhite,
+                child: Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  padding: const EdgeInsets.all(2),
+                  child: Row(
+                    children: [
+                      _buildFilterTab('Pendientes', 'pendiente', 0),
+                      _buildFilterTab('Resueltos', 'resuelta', 1),
+                      _buildFilterTab(
+                        'Desactivados',
+                        'desactivado',
+                        2,
+                      ), // 🔥 NUEVO
+                      _buildFilterTab('Todos', 'todos', 3),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+        body: _isLoading
+            ? Center(child: CircularProgressIndicator(color: _brandOrange))
+            : _hasError
+            ? Center(
+                child: Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              )
+            : PageView(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentPage = index;
+                    // 🔥 ACTUALIZAR FILTROS
+                    switch (index) {
+                      case 0:
+                        _filtrarReportes('pendiente');
+                        break;
+                      case 1:
+                        _filtrarReportes('resuelta');
+                        break;
+                      case 2: // 🔥 NUEVO
+                        _filtrarReportes('desactivado');
+                        break;
+                      case 3:
+                        _filtrarReportes('todos');
+                        break;
+                    }
+                  });
+                },
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text('Cargando reportes...'),
+                  // Pendientes
+                  _buildList(
+                    _reportes.where((r) => r['status'] == 'pendiente').toList(),
+                  ),
+                  // Resueltos (sin desactivar)
+                  _buildList(
+                    _reportes.where((r) {
+                      final servicioStatus = r['servicio']?['status'];
+                      return r['status'] == 'resuelta' &&
+                          servicioStatus != 'rechazada';
+                    }).toList(),
+                  ),
+                  // 🔥 NUEVO: Desactivados
+                  _buildList(
+                    _reportes.where((r) {
+                      final servicioStatus = r['servicio']?['status'];
+                      return r['status'] == 'resuelta' &&
+                          servicioStatus == 'rechazada';
+                    }).toList(),
+                  ),
+                  // Todos
+                  _buildList(_reportes),
                 ],
               ),
-            )
-          : _hasError
-          ? _buildErrorView()
-          : Column(
-              children: [
-                // Filtros
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      FilterChip(
-                        label: const Text('Pendientes'),
-                        selected: _filtroStatus == 'pendiente',
-                        onSelected: (selected) => _filtrarReportes('pendiente'),
-                      ),
-                      FilterChip(
-                        label: const Text('Resueltos'),
-                        selected: _filtroStatus == 'resuelta',
-                        onSelected: (selected) => _filtrarReportes('resuelta'),
-                      ),
-                      FilterChip(
-                        label: const Text('Todos'),
-                        selected: _filtroStatus == 'todos',
-                        onSelected: (selected) => _filtrarReportes('todos'),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Contador
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  color: Colors.grey[50],
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${_filteredReportes.length} reportes',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        _filtroStatus == 'pendiente'
-                            ? 'Mostrando pendientes'
-                            : _filtroStatus == 'resuelta'
-                            ? 'Mostrando resueltos'
-                            : 'Mostrando todos',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Lista de reportes
-                Expanded(
-                  child: _filteredReportes.isEmpty
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                size: 60,
-                                color: Colors.green,
-                              ),
-                              SizedBox(height: 10),
-                              Text('No hay reportes'),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.only(bottom: 20),
-                          itemCount: _filteredReportes.length,
-                          itemBuilder: (context, index) {
-                            return _buildReporteCard(_filteredReportes[index]);
-                          },
-                        ),
-                ),
-              ],
-            ),
+      ),
     );
   }
 }

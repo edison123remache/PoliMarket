@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/cita_service.dart';
+
 import '../models/cita_model.dart';
+import '../services/cita_service.dart';
 import 'citas_detalles_dialog.dart';
 
 class AgendaScreen extends StatefulWidget {
   const AgendaScreen({super.key});
 
   @override
-  State<StatefulWidget> createState() {
-    return _AgendaScreenState();
-  }
+  State<StatefulWidget> createState() => _AgendaScreenState();
 }
 
 class _AgendaScreenState extends State<AgendaScreen> {
   final CitaService _citaService = CitaService();
   final ScrollController _scrollController = ScrollController();
+
   List<Cita> _citas = [];
   List<Cita> _citasPasadas = [];
   List<Cita> _citasHoy = [];
   List<Cita> _citasFuturas = [];
+
   bool _isLoading = true;
   String? _currentUserId;
 
@@ -32,6 +33,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
   void _getCurrentUser() {
     final user = Supabase.instance.client.auth.currentUser;
     _currentUserId = user?.id;
+
     if (_currentUserId != null) {
       _cargarCitas();
     }
@@ -45,59 +47,67 @@ class _AgendaScreenState extends State<AgendaScreen> {
     try {
       final data = await _citaService.getCitasAceptadas();
 
-      // Convertir a objetos Cita
       final citas = data
           .map((map) => Cita.fromMap(map, _currentUserId!))
           .toList();
 
-      // Clasificar citas
       final ahora = DateTime.now();
       final hoy = DateTime(ahora.year, ahora.month, ahora.day);
 
+      // Mantenemos tu lógica exacta de filtrado
       _citasPasadas = citas.where((c) => c.fecha.isBefore(hoy)).toList();
-      _citasHoy = citas.where((c) => c.fecha.isAtSameMomentAs(hoy)).toList();
+      _citasHoy = citas
+          .where(
+            (c) =>
+                c.fecha.year == hoy.year &&
+                c.fecha.month == hoy.month &&
+                c.fecha.day == hoy.day,
+          )
+          .toList();
       _citasFuturas = citas.where((c) => c.fecha.isAfter(hoy)).toList();
 
-      // Ordenar cada categoría
-      _citasPasadas.sort(
-        (a, b) => b.fecha.compareTo(a.fecha),
-      ); // Más reciente primero
+      _citasPasadas.sort((a, b) => b.fecha.compareTo(a.fecha));
       _citasHoy.sort((a, b) => a.hora.hour.compareTo(b.hora.hour));
       _citasFuturas.sort((a, b) => a.fecha.compareTo(b.fecha));
 
-      // Obtener nombres de otros usuarios (si es necesario)
+      setState(() {
+        _citas = citas;
+      });
+
       await _obtenerNombresUsuarios();
 
       setState(() {
-        _citas = citas;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      print('Error cargando citas: $e');
+      debugPrint('Error cargando citas: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al cargar citas'),
-          backgroundColor: Colors.red,
+          content: const Text('Error al sincronizar con el servidor'),
+          backgroundColor: Colors.redAccent.shade700,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
 
   Future<void> _obtenerNombresUsuarios() async {
-    for (var cita in _citas) {
-      if (cita.otroUsuarioId != null) {
-        try {
-          final perfil = await Supabase.instance.client
-              .from('perfiles')
-              .select('nombre')
-              .eq('id', cita.otroUsuarioId!)
-              .single();
+    for (final cita in _citas) {
+      if (cita.otroUsuarioId == null) continue;
 
-          // Actualizar el nombre en la cita
-          final index = _citas.indexWhere((c) => c.id == cita.id);
-          if (index != -1) {
-            final citaActualizada = Cita(
+      try {
+        final perfil = await Supabase.instance.client
+            .from('perfiles')
+            .select('nombre')
+            .eq('id', cita.otroUsuarioId!)
+            .single();
+
+        final index = _citas.indexWhere((c) => c.id == cita.id);
+
+        if (index != -1) {
+          setState(() {
+            _citas[index] = Cita(
               id: cita.id,
               chatId: cita.chatId,
               propuestoPor: cita.propuestoPor,
@@ -114,33 +124,25 @@ class _AgendaScreenState extends State<AgendaScreen> {
               otroUsuarioId: cita.otroUsuarioId,
               otroUsuarioNombre: perfil['nombre'] ?? 'Usuario',
             );
-            _citas[index] = citaActualizada;
-          }
-        } catch (e) {
-          print('Error obteniendo nombre: $e');
+          });
         }
+      } catch (e) {
+        debugPrint('Error obteniendo nombre: $e');
       }
     }
   }
 
   String _obtenerNombreDisplay(Cita cita) {
-    // 1. Si hay nombre del otro usuario, usarlo
     if (cita.otroUsuarioNombre != null && cita.otroUsuarioNombre != 'Usuario') {
       return cita.otroUsuarioNombre!;
     }
-
-    // 2. Si hay título del servicio, usarlo
     if (cita.servicioInfo != null && cita.servicioInfo!['titulo'] != null) {
       return cita.servicioInfo!['titulo'];
     }
-
-    // 3. Nombre del perfil que propuso
     if (cita.perfilInfo != null && cita.perfilInfo!['nombre'] != null) {
       return cita.perfilInfo!['nombre'];
     }
-
-    // 4. Por defecto
-    return 'Cita';
+    return 'Cita Pendiente';
   }
 
   void _mostrarDetallesCita(Cita cita) async {
@@ -150,246 +152,289 @@ class _AgendaScreenState extends State<AgendaScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) =>
+      builder: (_) =>
           CitaDetallesDialog(cita: cita, detallesCompletos: detallesCompletos),
     );
   }
 
-  Widget _buildSeccion(String titulo, List<Cita> citas, Color colorTitulo) {
-    if (citas.isEmpty) return SizedBox();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
-          child: Text(
-            '$titulo (${citas.length})',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: colorTitulo,
-            ),
-          ),
-        ),
-        ...citas.map((cita) => _buildCitaItem(cita)),
-      ],
-    );
-  }
-
-  Widget _buildCitaItem(Cita cita) {
-    final esPasada = cita.esPasada;
-
-    return GestureDetector(
-      onTap: () => _mostrarDetallesCita(cita),
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: esPasada ? Colors.grey[100] : Colors.orange.shade50,
-          border: Border.all(
-            color: esPasada ? Colors.grey[400]! : Colors.orange,
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            // Hora
-            Container(
-              width: 60,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    '${cita.hora.hour}:${cita.hora.minute.toString().padLeft(2, '0')}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: esPasada ? Colors.grey[600]! : Colors.black,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Aceptada',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(width: 12),
-
-            // Información
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _obtenerNombreDisplay(cita),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: esPasada ? Colors.grey[700] : Colors.black,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 14,
-                        color: esPasada ? Colors.grey : Colors.grey[700],
-                      ),
-                      SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          cita.ubicacion,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: esPasada
-                                ? Colors.grey[600]
-                                : Colors.grey[700],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (cita.detalles != null && cita.detalles!.isNotEmpty)
-                    Padding(
-                      padding: EdgeInsets.only(top: 4),
-                      child: Text(
-                        cita.detalles!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                          color: esPasada ? Colors.grey[500] : Colors.grey[600],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // Flecha
-            Icon(
-              Icons.chevron_right,
-              color: esPasada ? Colors.grey : Colors.orange,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _scrollToToday() {
-    if (!_scrollController.hasClients) {
+    if (!_scrollController.hasClients || _citasHoy.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _citas.isEmpty
-                ? 'No tienes citas programadas'
-                : 'No hay citas para hoy',
-          ),
+        const SnackBar(
+          content: Text('No hay citas programadas para hoy'),
           duration: Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
     }
 
-    // Verificar si hay citas hoy
-    if (_citasHoy.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No hay citas para hoy'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-      return;
-    }
-
-    double calcularPosicionHoy() {
-      double posicion = 0.0;
-      const alturaSeccion = 40.0; // Altura del título de sección
-      const alturaCita = 120.0; // Altura aproximada de cada cita
-
-      if (_citasPasadas.isNotEmpty) {
-        posicion += alturaSeccion + (_citasPasadas.length * alturaCita);
-      }
-      posicion += 20.0;
-
-      return posicion;
+    double posicion = 0;
+    if (_citasPasadas.isNotEmpty) {
+      // Cálculo aproximado basado en la nueva altura de las tarjetas
+      posicion += 60 + (_citasPasadas.length * 110);
     }
 
     _scrollController.animateTo(
-      calcularPosicionHoy(),
-      duration: Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
+      posicion,
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.fastOutSlowIn,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Tus citas'), centerTitle: true),
+      backgroundColor: const Color(0xFFF8F9FE),
+      appBar: AppBar(
+        title: const Text(
+          'Mi Agenda',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF1A1A1A),
+            fontSize: 22,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: _cargarCitas,
+            icon: const Icon(Icons.sync, color: Colors.orange),
+          ),
+        ],
+      ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: Colors.orange))
-          : _citas.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.calendar_today, size: 80, color: Colors.grey),
-                  SizedBox(height: 20),
-                  Text(
-                    'No tienes citas aceptadas',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Las citas que aceptes aparecerán aquí',
-                    style: TextStyle(color: Colors.grey[600]),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: Colors.orange,
+                strokeWidth: 2,
               ),
             )
+          : _citas.isEmpty
+          ? _buildEmptyState()
           : RefreshIndicator(
               onRefresh: _cargarCitas,
               color: Colors.orange,
               child: ListView(
                 controller: _scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
                 children: [
-                  _buildSeccion('Pasadas', _citasPasadas, Colors.grey),
-                  _buildSeccion('Hoy', _citasHoy, Colors.orange),
-                  _buildSeccion('Próximas', _citasFuturas, Colors.green),
-                  SizedBox(height: 20),
+                  _buildSeccion('PASADAS', _citasPasadas, Colors.grey),
+                  _buildSeccion('PARA HOY', _citasHoy, Colors.orange),
+                  _buildSeccion(
+                    'PRÓXIMAS',
+                    _citasFuturas,
+                    const Color(0xFF4CAF50),
+                  ),
                 ],
               ),
             ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _scrollToToday,
-        backgroundColor: Color(0xFFFF6B35),
-        child: Icon(Icons.today, color: Colors.white),
+        backgroundColor: const Color(0xFF1A1A1A),
+        elevation: 4,
+        icon: const Icon(Icons.today_rounded, color: Colors.white),
+        label: const Text(
+          'Ir a hoy',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.calendar_today_outlined,
+            size: 80,
+            color: Colors.grey.withOpacity(0.3),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'No hay citas agendadas',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Tus citas aceptadas aparecerán aquí',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeccion(String titulo, List<Cita> citas, Color colorTema) {
+    if (citas.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          child: Row(
+            children: [
+              Text(
+                titulo,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: colorTema,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Divider(color: colorTema.withOpacity(0.2), thickness: 1),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '${citas.length}',
+                style: TextStyle(
+                  color: colorTema.withOpacity(0.5),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...citas.map((cita) => _buildCitaCard(cita)),
+      ],
+    );
+  }
+
+  Widget _buildCitaCard(Cita cita) {
+    final bool esPasada = cita.esPasada;
+    final String horaStr =
+        '${cita.hora.hour}:${cita.hora.minute.toString().padLeft(2, '0')}';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _mostrarDetallesCita(cita),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Indicador de Hora
+                Container(
+                  width: 65,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: esPasada
+                        ? Colors.grey.shade50
+                        : Colors.orange.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        horaStr,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                          color: esPasada
+                              ? Colors.grey
+                              : Colors.orange.shade800,
+                        ),
+                      ),
+                      const Text(
+                        'AM/PM',
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Contenido
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _obtenerNombreDisplay(cita),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: esPasada
+                              ? Colors.grey
+                              : const Color(0xFF2D2D2D),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              cita.ubicacion,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.black45,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (cita.detalles != null &&
+                          cita.detalles!.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          cita.detalles!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.orange.shade300,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // Botón de estado
+                Icon(Icons.chevron_right_rounded, color: Colors.grey.shade300),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

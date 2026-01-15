@@ -100,4 +100,17 @@ class LocationServiceIQ {
       throw Exception('Error al buscar lugares: $e');
     }
   }
+
+  static String getStaticMapUrl(double lat, double lon) {
+    // LocationIQ Static Map API
+    return 'https://maps.locationiq.com/v3/staticmap?key=$_apiKey&center=$lat,$lon&zoom=15&size=600x300&format=png&markers=icon:large-red-cutout|$lat,$lon';
+  }
+
+  // NUEVO: Generar URL para abrir en Google Maps / Waze / Apple Maps
+  static Uri getExternalMapUrl(double lat, double lon) {
+    // Usamos el esquema universal de Google Maps que funciona en iOS y Android
+    return Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$lat,$lon',
+    );
+  }
 }

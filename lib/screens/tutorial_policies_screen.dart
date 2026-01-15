@@ -26,14 +26,18 @@ class _TutorialPoliciesScreenState extends State<TutorialPoliciesScreen> {
     super.dispose();
   }
 
+  // Colores consistentes con tu marca
+  final Color primaryColor = const Color(0xFFFF6B35);
+  final Color darkColor = const Color(0xFF1E272E);
+
   String get _title {
     switch (widget.type) {
       case TutorialPolicyType.tutorialNuevos:
-        return 'Tutorial para Usuarios Nuevos';
+        return 'Guía de Inicio';
       case TutorialPolicyType.tutorialPublicar:
-        return 'Tutorial para Publicar Servicio';
+        return '¿Cómo publicar?';
       case TutorialPolicyType.politicasUsuarios:
-        return 'Políticas para Usuarios';
+        return 'Normas de Usuario';
       case TutorialPolicyType.politicasPublicacion:
         return 'Políticas de Publicación';
     }
@@ -44,25 +48,25 @@ class _TutorialPoliciesScreenState extends State<TutorialPoliciesScreen> {
       case TutorialPolicyType.tutorialNuevos:
         return [
           {
-            'icon': Icons.account_circle,
-            'title': 'Bienvenido a PoliMarket',
+            'icon': Icons.account_circle_outlined,
+            'title': 'Bienvenido a Llama-Market',
             'content':
-                'PoliMarket es una plataforma diseñada para estudiantes de la ESPOCH donde podrás ofrecer y solicitar servicios de manera segura y sencilla.',
+                'Llama-Market es una plataforma diseñada para estudiantes de la ESPOCH donde podrás ofrecer y solicitar servicios de manera segura y sencilla.',
           },
           {
-            'icon': Icons.search,
+            'icon': Icons.search_rounded,
             'title': 'Explora Servicios',
             'content':
                 'Utiliza la barra de búsqueda en la pantalla principal para encontrar servicios que necesites. Puedes filtrar por categoría y ubicación.',
           },
           {
-            'icon': Icons.chat,
+            'icon': Icons.chat_bubble_outline_rounded,
             'title': 'Contacta Vendedores',
             'content':
                 'Una vez encuentres un servicio de tu interés, puedes contactar directamente al vendedor mediante el sistema de mensajería integrado.',
           },
           {
-            'icon': Icons.star,
+            'icon': Icons.star_outline_rounded,
             'title': 'Califica y Opina',
             'content':
                 'Después de completar una transacción, recuerda calificar al vendedor. Esto ayuda a mantener la confianza en la comunidad.',
@@ -72,31 +76,31 @@ class _TutorialPoliciesScreenState extends State<TutorialPoliciesScreen> {
       case TutorialPolicyType.tutorialPublicar:
         return [
           {
-            'icon': Icons.add_circle,
+            'icon': Icons.add_circle_outline_rounded,
             'title': 'Crear una Publicación',
             'content':
                 'Toca el botón "+" en la barra de navegación inferior para crear una nueva publicación de servicio.',
           },
           {
-            'icon': Icons.title,
+            'icon': Icons.title_rounded,
             'title': 'Título Descriptivo',
             'content':
                 'Escribe un título claro y descriptivo para tu servicio. Máximo 40 caracteres. Ejemplo: "Clases de Matemáticas" o "Vendo Apuntes de Física".',
           },
           {
-            'icon': Icons.photo_camera,
+            'icon': Icons.photo_camera_outlined,
             'title': 'Agrega Fotos',
             'content':
                 'Puedes subir hasta 3 fotos de tu servicio o producto. Las imágenes de buena calidad atraen más compradores.',
           },
           {
-            'icon': Icons.location_on,
+            'icon': Icons.location_on_outlined,
             'title': 'Ubicación y Detalles',
             'content':
                 'Indica dónde se encuentra tu servicio o producto. Proporciona una descripción detallada (máximo 2030 caracteres).',
           },
           {
-            'icon': Icons.check_circle,
+            'icon': Icons.check_circle_outline_rounded,
             'title': 'Revisión de Contenido',
             'content':
                 'Todas las publicaciones pasan por una revisión automática. Asegúrate de que tu contenido cumpla con nuestras políticas para evitar que sea marcada como inactiva.',
@@ -106,74 +110,62 @@ class _TutorialPoliciesScreenState extends State<TutorialPoliciesScreen> {
       case TutorialPolicyType.politicasUsuarios:
         return [
           {
-            'icon': Icons.verified_user,
+            'icon': Icons.verified_user_outlined,
             'title': 'Cuenta Verificada',
             'content':
                 'Solo estudiantes con correo institucional (@espoch.edu.ec) pueden registrarse. Mantén tu información actualizada y verídica.',
           },
           {
-            'icon': Icons.handshake,
+            'icon': Icons.handshake_outlined,
             'title': 'Respeto y Cortesía',
             'content':
-                'Trata a todos los usuarios con respeto. No se toleran insultos, acoso ni discriminación de ningún tipo. Cualquier comportamiento inapropiado puede resultar en suspensión.',
+                'Trata a todos los usuarios con respeto. No se toleran insultos, acoso ni discriminación de ningún tipo.',
           },
           {
-            'icon': Icons.security,
-            'title': 'Transacciones Seguras',
+            'icon': Icons.report_gmailerrorred_rounded,
+            'title': 'Reporta Actividad',
             'content':
-                'Realiza transacciones en lugares públicos y seguros dentro del campus. PoliMarket no se hace responsable de transacciones fuera de la plataforma.',
+                'Si encuentras contenido inapropiado o actividad sospechosa, repórtalo inmediatamente. Tu reporte es confidencial.',
           },
           {
-            'icon': Icons.report,
-            'title': 'Reporta Actividad Sospechosa',
-            'content':
-                'Si encuentras contenido inapropiado o actividad sospechosa, repórtalo inmediatamente. Tu reporte es confidencial y nos ayuda a mantener la comunidad segura.',
-          },
-          {
-            'icon': Icons.block,
+            'icon': Icons.block_flipped,
             'title': 'Contenido Prohibido',
             'content':
-                'Está prohibido publicar contenido sexual, violento, discriminatorio o que promueva actividades ilegales. Las cuentas que violen estas normas serán suspendidas permanentemente.',
+                'Está prohibido publicar contenido sexual, violento o ilegal. Las cuentas que violen estas normas serán suspendidas permanentemente.',
           },
         ];
 
       case TutorialPolicyType.politicasPublicacion:
         return [
           {
-            'icon': Icons.edit_note,
+            'icon': Icons.edit_note_rounded,
             'title': 'Información Precisa',
             'content':
-                'Proporciona información precisa y honesta sobre tu servicio o producto. Las descripciones engañosas pueden resultar en la eliminación de tu publicación.',
+                'Proporciona información precisa y honesta sobre tu servicio. Las descripciones engañosas pueden resultar en la eliminación de tu publicación.',
           },
           {
-            'icon': Icons.attach_money,
-            'title': 'Precios Justos',
-            'content':
-                'Establece precios razonables y justos. Las publicaciones con precios excesivamente altos pueden ser reportadas y revisadas.',
-          },
-          {
-            'icon': Icons.photo_library,
+            'icon': Icons.photo_library_outlined,
             'title': 'Imágenes Apropiadas',
             'content':
                 'Usa imágenes reales de tu servicio o producto. No se permiten imágenes con contenido sexual, violento o engañoso.',
           },
           {
-            'icon': Icons.cancel,
+            'icon': Icons.cancel_outlined,
             'title': 'Contenido No Permitido',
             'content':
-                'No se permiten publicaciones de: servicios sexuales, drogas, armas, productos robados, trabajos académicos fraudulentos (hacer tareas por otros), o cualquier actividad ilegal.',
+                'No se permiten: servicios sexuales, drogas, armas, productos robados o trabajos académicos fraudulentos.',
           },
           {
-            'icon': Icons.warning,
+            'icon': Icons.warning_amber_rounded,
             'title': 'Sistema de Reportes',
             'content':
-                'Si una publicación recibe 5 o más reportes válidos, será automáticamente marcada como inactiva y revisada por administradores. Mantén tu contenido dentro de las normas.',
+                'Si una publicación recibe 5 o más reportes válidos, será automáticamente marcada como inactiva para su revisión.',
           },
           {
-            'icon': Icons.update,
-            'title': 'Mantén tu Publicación Actualizada',
+            'icon': Icons.update_rounded,
+            'title': 'Mantén la Vigencia',
             'content':
-                'Si tu servicio o producto ya no está disponible, elimina la publicación. Las publicaciones desactualizadas afectan negativamente tu calificación.',
+                'Si tu servicio ya no está disponible, elimina la publicación. Las publicaciones desactualizadas afectan tu calificación.',
           },
         ];
     }
@@ -182,78 +174,92 @@ class _TutorialPoliciesScreenState extends State<TutorialPoliciesScreen> {
   @override
   Widget build(BuildContext context) {
     final pages = _pages;
+    final bool isLastPage = _currentPage == pages.length - 1;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header con botón de regreso
-            _buildHeader(),
-
-            // Contenido con carrusel
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentPage = index;
-                  });
-                },
-                itemCount: pages.length,
-                itemBuilder: (context, index) {
-                  return _buildPage(
-                    pages[index]['icon'] as IconData,
-                    pages[index]['title'] as String,
-                    pages[index]['content'] as String,
-                  );
-                },
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // Fondo con gradiente sutil
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    primaryColor.withOpacity(0.12),
+                    Colors.white,
+                    primaryColor.withOpacity(0.05),
+                  ],
+                ),
               ),
             ),
-
-            // Indicadores de página (dots)
-            _buildPageIndicators(pages.length),
-
-            const SizedBox(height: 24),
-          ],
-        ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildAppBar(),
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    physics: const BouncingScrollPhysics(),
+                    onPageChanged: (index) =>
+                        setState(() => _currentPage = index),
+                    itemCount: pages.length,
+                    itemBuilder: (context, index) {
+                      return _buildPageCard(
+                        pages[index]['icon'] as IconData,
+                        pages[index]['title'] as String,
+                        pages[index]['content'] as String,
+                      );
+                    },
+                  ),
+                ),
+                _buildFooter(pages.length, isLastPage),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+  Widget _buildAppBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          // Botón de regreso
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF2D3436)),
-            onPressed: () => Navigator.pop(context),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          const SizedBox(width: 12),
-          // Título
-          Expanded(
-            child: Text(
-              _title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3436),
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              overflow: TextOverflow.ellipsis,
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Text(
+            _title,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: darkColor,
+              letterSpacing: -0.5,
             ),
           ),
         ],
@@ -261,69 +267,130 @@ class _TutorialPoliciesScreenState extends State<TutorialPoliciesScreen> {
     );
   }
 
-  Widget _buildPage(IconData icon, String title, String content) {
+  Widget _buildPageCard(IconData icon, String title, String content) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Icono
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFB088).withOpacity(0.2),
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFFF6B35), width: 3),
-            ),
-            child: Icon(icon, size: 80, color: const Color(0xFFFF6B35)),
+          // Icono con capas de sombra y color
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                height: 160,
+                width: 160,
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Container(
+                height: 120,
+                width: 120,
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Icon(icon, size: 80, color: primaryColor),
+            ],
           ),
-
-          const SizedBox(height: 32),
-
-          // Título
+          const SizedBox(height: 50),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D3436),
-            ),
             textAlign: TextAlign.center,
-          ),
-
-          const SizedBox(height: 24),
-
-          // Contenido
-          Text(
-            content,
             style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[700],
-              height: 1.6,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: darkColor,
+              height: 1.1,
+              letterSpacing: -0.8,
             ),
-            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              content,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 17,
+                color: Colors.blueGrey[700],
+                height: 1.6,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPageIndicators(int pageCount) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        pageCount,
-        (index) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: _currentPage == index ? 32 : 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: _currentPage == index
-                ? const Color(0xFFFF6B35)
-                : const Color(0xFFFFB088).withOpacity(0.3),
-            borderRadius: BorderRadius.circular(4),
+  Widget _buildFooter(int pageCount, bool isLastPage) {
+    return Padding(
+      padding: const EdgeInsets.all(30),
+      child: Column(
+        children: [
+          // Indicadores Minimalistas
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              pageCount,
+              (index) => AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: _currentPage == index ? 28 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _currentPage == index
+                      ? primaryColor
+                      : primaryColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 32),
+          // Botón estilizado
+          SizedBox(
+            width: double.infinity,
+            height: 64,
+            child: ElevatedButton(
+              onPressed: () {
+                if (isLastPage) {
+                  Navigator.pop(context);
+                } else {
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeInOutQuart,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                elevation: 8,
+                shadowColor: primaryColor.withOpacity(0.4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Text(
+                  isLastPage ? "COMENZAR" : "SIGUIENTE",
+                  key: ValueKey(isLastPage),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

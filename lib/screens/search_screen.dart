@@ -347,7 +347,8 @@ class _SearchScreenState extends State<SearchScreen> {
     dynamic queryBuilder = supabase
         .from('servicios')
         .select('*, perfiles(rating_avg)')
-        .ilike('titulo', pattern);
+        .ilike('titulo', pattern)
+        .eq('status', 'activa');
 
     switch (_sortOption) {
       case 'Más antiguos':

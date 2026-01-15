@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:gotrue/gotrue.dart';
 
 
 class AuthService {
@@ -59,7 +58,7 @@ class AuthService {
 
     await _supabase.auth.resetPasswordForEmail(
       email,
-      redirectTo: 'yourapp://reset-password',
+      redirectTo: 'com.grupo6.llamamarket://reset-password',
     );
   }
 

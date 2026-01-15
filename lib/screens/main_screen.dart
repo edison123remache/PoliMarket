@@ -56,28 +56,27 @@ class _MainScreenState extends State<MainScreen> {
     // 🔴 STREAM PARA MENSAJES PENDIENTES
     final userId = _supabase.auth.currentUser?.id;
 
-if (userId != null) {
-  _unreadCountStream = _supabase
-      .from('mensajes') // 👈 TABLA DE MENSAJES, NO chats
-      .stream(primaryKey: ['id'])
-      .map((rows) {
-        int count = 0;
+    if (userId != null) {
+      _unreadCountStream = _supabase
+          .from('mensajes') // 👈 TABLA DE MENSAJES, NO chats
+          .stream(primaryKey: ['id'])
+          .map((rows) {
+            int count = 0;
 
-        for (final msg in rows) {
-          final esParaMi = msg['receptor_id'] == userId;
-          final noLeido = msg['leido'] == false;
+            for (final msg in rows) {
+              final esParaMi = msg['receptor_id'] == userId;
+              final noLeido = msg['leido'] == false;
 
-          if (esParaMi && noLeido) {
-            count++;
-          }
-        }
+              if (esParaMi && noLeido) {
+                count++;
+              }
+            }
 
-        return count;
-      });
-} else {
-  _unreadCountStream = Stream.value(0);
-}
-
+            return count;
+          });
+    } else {
+      _unreadCountStream = Stream.value(0);
+    }
 
     if (widget.path == null) return;
 
@@ -193,8 +192,9 @@ if (userId != null) {
             else
               Icon(
                 item['icon'] as IconData,
-                color:
-                    selected ? const Color(0xFFF5501D) : Colors.grey.shade400,
+                color: selected
+                    ? const Color(0xFFF5501D)
+                    : Colors.grey.shade400,
               ),
             Text(
               item['label'] as String,

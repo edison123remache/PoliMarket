@@ -72,28 +72,27 @@ class ChatService {
           })
           .eq('id', chatId);
 
-final data = await supabase
-    .from('chats')
-    .select('user1_id, user2_id')
-    .eq('id', chatId)
-    .maybeSingle();
+      final data = await supabase
+          .from('chats')
+          .select('user1_id, user2_id')
+          .eq('id', chatId)
+          .maybeSingle();
 
-// Si no hay chat, salir
-if (data == null || data.isEmpty) return {};
+      // Si no hay chat, salir
+      if (data == null || data.isEmpty) return {};
 
-// Convertir de forma segura a Map<String, dynamic>
-final chatData = Map<String, dynamic>.from(data);
+      // Convertir de forma segura a Map<String, dynamic>
+      final chatData = Map<String, dynamic>.from(data);
 
-// Obtener IDs de manera segura
-final user1 = chatData['user1_id']?.toString();
-final user2 = chatData['user2_id']?.toString();
+      // Obtener IDs de manera segura
+      final user1 = chatData['user1_id']?.toString();
+      final user2 = chatData['user2_id']?.toString();
 
-// Verificar que no sean nulos
-if (user1 == null || user2 == null) return {};
+      // Verificar que no sean nulos
+      if (user1 == null || user2 == null) return {};
 
-// Elegir destinatario
-final recipientId = user1 == senderId ? user2 : user1;
-
+      // Elegir destinatario
+      final recipientId = user1 == senderId ? user2 : user1;
 
       final response = await supabase.functions.invoke(
         'send-notification',
@@ -140,10 +139,7 @@ final recipientId = user1 == senderId ? user2 : user1;
   // 🔹 Obtener mensajes históricos
   // ===========================================================
   Future<List<Map<String, dynamic>>> getMessages(String chatId) async {
-    final res = await supabase
-        .from('mensajes')
-        .select()
-        .eq('chat_id', chatId);
+    final res = await supabase.from('mensajes').select().eq('chat_id', chatId);
 
     final messages = res
         .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
@@ -191,8 +187,9 @@ final recipientId = user1 == senderId ? user2 : user1;
 
               final fotos = serv?['fotos'];
               map['servicio_titulo'] = serv?['titulo'];
-              map['servicio_foto_url'] =
-                  (fotos is List && fotos.isNotEmpty) ? fotos[0] : null;
+              map['servicio_foto_url'] = (fotos is List && fotos.isNotEmpty)
+                  ? fotos[0]
+                  : null;
             } else {
               map['servicio_titulo'] = null;
               map['servicio_foto_url'] = null;
@@ -245,6 +242,8 @@ final recipientId = user1 == senderId ? user2 : user1;
     required String propuestoPor,
     required DateTime fecha,
     required String ubicacion,
+    double? lat,
+    double? lon,
     String? detalles,
     required String fechaFormateada,
   }) async {
@@ -256,6 +255,8 @@ final recipientId = user1 == senderId ? user2 : user1;
           'fecha': fecha.toIso8601String(),
           'hora': DateFormat('HH:mm').format(fecha),
           'ubicacion': ubicacion,
+          'lat': lat,
+          'lon': lon,
           'detalles': detalles?.trim().isEmpty == true ? null : detalles,
           'estado': 'pendiente',
           'creado_en': DateTime.now().toUtc().toIso8601String(),
@@ -274,6 +275,8 @@ final recipientId = user1 == senderId ? user2 : user1;
             'cita_id': citaId,
             'fecha': fechaFormateada,
             'ubicacion': ubicacion,
+            'lat': lat,
+            'lon': lon,
             'detalles': detalles ?? '',
             'estado': 'pendiente',
             'propuesto_por': propuestoPor,
@@ -297,28 +300,61 @@ final recipientId = user1 == senderId ? user2 : user1;
   // ===========================================================
   // 🔹 Actualizar estado cita
   // ===========================================================
-  Future<void> actualizarEstadoCitaCompleto(
-      String citaId, String nuevoEstado) async {
+Future<void> actualizarEstadoCitaCompleto(
+  String citaId,
+  String nuevoEstado,
+) async {
+  try {
+    debugPrint('🔄 Iniciando actualización de cita: $citaId -> $nuevoEstado');
+    
+    // 1. Actualizar el estado en la tabla citas
     await supabase
         .from('citas')
         .update({'estado': nuevoEstado})
         .eq('id', citaId);
 
+    debugPrint('✅ Estado actualizado en tabla citas');
+
+    // 2. Obtener los mensajes asociados a esta cita
     final mensajes = await supabase
         .from('mensajes')
         .select('id, contenido')
         .filter('contenido->>cita_id', 'eq', citaId.toString());
 
+    debugPrint('📨 Mensajes encontrados: ${mensajes.length}');
+
+    // 3. Actualizar cada mensaje
     for (final msg in mensajes) {
-      final Map<String, dynamic> contenido =
-          Map<String, dynamic>.from(msg['contenido']);
+      final Map<String, dynamic> contenido = Map<String, dynamic>.from(
+        msg['contenido'],
+      );
       contenido['estado'] = nuevoEstado;
 
       await supabase
           .from('mensajes')
           .update({'contenido': contenido})
-          .eq('id', msg['id'])
-          .filter('contenido->>estado', 'eq', 'pendiente');
+          .eq('id', msg['id']);
     }
+
+    debugPrint('✅ Mensajes actualizados');
+
+    // 4. Enviar notificación push
+    debugPrint('📲 Enviando notificación...');
+    
+    final response = await supabase.functions.invoke(
+      'notificar--cita',
+      body: {
+        'cita_id': citaId,
+        'nuevo_estado': nuevoEstado,
+      },
+    );
+
+    debugPrint('📬 Notificación enviada - Status: ${response.status}');
+    
+  } catch (e, stackTrace) {
+    debugPrint('❌ Error actualizando cita: $e');
+    debugPrint('Stack: $stackTrace');
+    rethrow;
   }
+}
 }

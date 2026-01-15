@@ -15,7 +15,9 @@ class Cita {
   final Map<String, dynamic>? servicioInfo;
   final bool esPropietario;
   final String? otroUsuarioId; // ID del otro usuario en el chat
-  final String? otroUsuarioNombre; // Nombre del otro usuario
+
+  // CAMBIO AQUÍ: Se eliminó 'final' para permitir la actualización del nombre
+  String? otroUsuarioNombre;
 
   Cita({
     required this.id,
