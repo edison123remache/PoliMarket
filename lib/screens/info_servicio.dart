@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -1382,8 +1381,9 @@ class __ReporteDialogState extends State<_ReporteDialog> {
         ),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _enviandoReporte = false);
+      if (mounted) {
+        setState(() => _enviandoReporte = false);
+      }
     }
   }
 

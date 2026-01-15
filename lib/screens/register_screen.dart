@@ -194,10 +194,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: Icons.alternate_email_rounded,
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value == null || value.isEmpty)
+                        if (value == null || value.isEmpty) {
                           return 'Ingresa tu correo';
-                        if (!value.endsWith('@espoch.edu.ec'))
+                        }
+                        if (!value.endsWith('@espoch.edu.ec')) {
                           return 'Usa un correo institucional válido';
+                        }
                         return null;
                       },
                     ),

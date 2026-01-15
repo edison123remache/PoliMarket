@@ -1,7 +1,11 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:randimarket/screens/home_screen.dart';
+import 'package:randimarket/screens/update_password_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -47,12 +51,38 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<StatefulWidget> createState() {
+    return _MyAppState();
+  }
+}
+
+class _MyAppState extends State<MyApp> {
+  late final StreamSubscription<Uri> sub;
+  final navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await initAppLinks();
+    });
+  }
+
+  @override
+  void dispose() {
+    sub.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Llamamarket',
       theme: ThemeData(
         useMaterial3: true,
@@ -154,6 +184,7 @@ class MyApp extends StatelessWidget {
           final mode = ModalRoute.of(context)!.settings.arguments as String;
           return RankingServiciosScreen(mode: mode);
         },
+        '/reset-password': (_) => const UpdatePasswordScreen(),
       },
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -163,5 +194,53 @@ class MyApp extends StatelessWidget {
       supportedLocales: const [Locale('es', 'ES')],
       debugShowCheckedModeBanner: false,
     );
+  }
+
+  Future<void> initAppLinks() async {
+    final appLinks = AppLinks();
+
+    // Primero configura el listener para links futuros
+    sub = appLinks.uriLinkStream.listen((uri) {
+      handleDeepLink(uri);
+    });
+
+    // Luego obtén y maneja el link inicial (si existe)
+    try {
+      final uri = await appLinks.getInitialLink();
+      if (uri != null) {
+        handleDeepLink(uri);
+      }
+    } catch (e) {
+      debugPrint('Error obteniendo link inicial: $e');
+    }
+  }
+
+  void handleDeepLink(Uri uri) {
+    debugPrint('Scheme: ${uri.scheme}'); // com.grupo6.llamamarket
+    debugPrint('Host: ${uri.host}'); // reset-password (si usas //)
+    debugPrint('Path: ${uri.path}'); // /reset-password
+    debugPrint('Path segments: ${uri.pathSegments}'); // [reset-password]
+
+    // Extraer el path sin la barra inicial
+    final path = uri.host.isNotEmpty ? uri.host : uri.pathSegments.firstOrNull;
+
+    debugPrint('Path limpio: $path');
+
+    // Navegar según el path
+    if (path == 'reset-password') {
+      try {
+        // Aquí navegas a tu pantalla de reset password
+        debugPrint('Navegando a reset password');
+
+        navigatorKey.currentState?.pushNamed('/reset-password');
+
+        // También puedes leer query parameters si los hay
+        // Ejemplo: com.grupo6.llamamarket://reset-password?token=abc123
+        final token = uri.queryParameters['token'];
+        debugPrint('Token: $token');
+      } catch (e) {
+        debugPrint('Error: $e');
+      }
+    }
   }
 }

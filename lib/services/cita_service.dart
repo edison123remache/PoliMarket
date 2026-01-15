@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CitaService {
@@ -45,7 +46,7 @@ class CitaService {
 
       return response;
     } catch (e) {
-      print('Error en getCitasAceptadas: $e');
+      debugPrint('Error en getCitasAceptadas: $e');
       return [];
     }
   }
@@ -78,7 +79,7 @@ class CitaService {
 
       return response;
     } catch (e) {
-      print('Error en getCitaDetallada: $e');
+      debugPrint('Error en getCitaDetallada: $e');
       return null;
     }
   }

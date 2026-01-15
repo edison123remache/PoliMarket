@@ -9,10 +9,10 @@ class CitaDetallesDialog extends StatelessWidget {
   final Map<String, dynamic>? detallesCompletos;
 
   const CitaDetallesDialog({
-    Key? key,
+    super.key,
     required this.cita,
     this.detallesCompletos,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

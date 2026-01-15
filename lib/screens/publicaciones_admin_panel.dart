@@ -33,7 +33,7 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
   String _errorMessage = '';
   String _sortOption = 'Más recientes';
   late TabController _tabController;
-  int _currentTab = 0;
+  //int _currentTab = 0;
   bool _isRefreshing = false;
   Timer? _refreshTimer;
 
@@ -43,7 +43,7 @@ class _PublicacionesAdminScreenState extends State<PublicacionesAdminScreen>
     try {
       _tabController = TabController(length: 2, vsync: this);
       _tabController.addListener(() {
-        if (mounted) setState(() => _currentTab = _tabController.index);
+        //if (mounted) setState(() => _currentTab = _tabController.index);
       });
     } catch (e) {
       debugPrint('Error TabController: $e');

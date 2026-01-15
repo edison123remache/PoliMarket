@@ -17,8 +17,8 @@ class _UsuariosAdminScreenState extends State<UsuariosAdminScreen> {
   bool _isLoading = true;
   String _sortOption = 'Más recientes';
   String _filterRole = 'Todos';
-  double _minRating = 0;
-  double _maxRating = 5;
+  final double _minRating = 0;
+  final double _maxRating = 5;
 
   @override
   void initState() {
@@ -232,8 +232,9 @@ class _UsuariosAdminScreenState extends State<UsuariosAdminScreen> {
   }
 
   Widget _buildUserList() {
-    if (_filteredUsuarios.isEmpty)
+    if (_filteredUsuarios.isEmpty) {
       return const Center(child: Text("Sin resultados"));
+    }
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: _filteredUsuarios.length,
@@ -422,10 +423,7 @@ class _UsuariosAdminScreenState extends State<UsuariosAdminScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFFFF8C42),
-                      const Color(0xFFFF6B35),
-                    ],
+                    colors: [const Color(0xFFFF8C42), const Color(0xFFFF6B35)],
                   ),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(28),
@@ -438,9 +436,7 @@ class _UsuariosAdminScreenState extends State<UsuariosAdminScreen> {
                     Positioned.fill(
                       child: Opacity(
                         opacity: 0.1,
-                        child: CustomPaint(
-                          painter: _CirclePatternPainter(),
-                        ),
+                        child: CustomPaint(painter: _CirclePatternPainter()),
                       ),
                     ),
                     // Badge de rol
@@ -652,7 +648,9 @@ class _UsuariosAdminScreenState extends State<UsuariosAdminScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              u['rol'] == 'admin' ? "Bajar a User" : "Subir a Admin",
+                              u['rol'] == 'admin'
+                                  ? "Bajar a User"
+                                  : "Subir a Admin",
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 13,
@@ -701,18 +699,11 @@ class _UsuariosAdminScreenState extends State<UsuariosAdminScreen> {
       decoration: BoxDecoration(
         color: color.withOpacity(0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(0.15),
-          width: 1,
-        ),
+        border: Border.all(color: color.withOpacity(0.15), width: 1),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 24,
-          ),
+          Icon(icon, color: color, size: 24),
           const SizedBox(height: 10),
           Text(
             value,

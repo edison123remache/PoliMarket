@@ -120,10 +120,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: Icons.alternate_email_rounded,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Ingresa tu correo';
-                          if (!value.endsWith('@espoch.edu.ec'))
+                          }
+                          if (!value.endsWith('@espoch.edu.ec')) {
                             return 'Usa tu correo institucional';
+                          }
                           return null;
                         },
                       ),
@@ -140,8 +142,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           setState(() => _obscurePassword = !_obscurePassword);
                         },
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Ingresa tu contraseña';
+                          }
                           if (value.length < 6) return 'Mínimo 6 caracteres';
                           return null;
                         },

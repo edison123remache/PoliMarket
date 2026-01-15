@@ -40,6 +40,8 @@ class _ReportesAdminScreenState extends State<ReportesAdminScreen> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _cargarReportes();
+
+    debugPrint(_filteredReportes.toString());
   }
 
   @override

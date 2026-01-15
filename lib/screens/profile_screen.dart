@@ -1720,7 +1720,7 @@ class __DialogoCalificarUsuarioState extends State<_DialogoCalificarUsuario> {
         }
       });
     } catch (e) {
-      print('Error cargando servicios: $e');
+      debugPrint('Error cargando servicios: $e');
       setState(() => _cargandoServicios = false);
     }
   }
@@ -1993,7 +1993,7 @@ class __DialogoCalificarUsuarioState extends State<_DialogoCalificarUsuario> {
                           ),
                         ),
                       );
-                    }).toList(),
+                    }),
 
                     const SizedBox(height: 32),
 

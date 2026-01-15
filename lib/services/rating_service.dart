@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RatingService {
@@ -55,7 +56,7 @@ class RatingService {
       // Puede calificar si: hay al menos 5 mensajes O hay una cita aceptada
       return messages.length >= 5 || acceptedAppointment != null;
     } catch (e) {
-      print('Error en canUserRate: $e');
+      debugPrint('Error en canUserRate: $e');
       return false;
     }
   }
@@ -95,7 +96,7 @@ class RatingService {
 
       // Actualizar promedio del usuario calificado (se hace automáticamente con trigger)
     } catch (e) {
-      print('Error en rateUser: $e');
+      debugPrint('Error en rateUser: $e');
       rethrow;
     }
   }

@@ -400,6 +400,7 @@ class _SubirServicioScreenState extends State<SubirServicioScreen>
           .catchError((error) {
             // Solo loguear el error, no mostrar al usuario
             debugPrint('Error al notificar servicio: $error');
+            return error;
           });
 
       // 🔥 Verificar mounted antes de mostrar mensaje
