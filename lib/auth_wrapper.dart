@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:randimarket/screens/main_screen.dart';
+import 'package:llama_market/screens/main_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import './screens/login_screen.dart';

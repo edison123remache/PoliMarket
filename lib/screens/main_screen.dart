@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:randimarket/screens/chat_list_screen.dart';
-import 'package:randimarket/screens/home_screen.dart';
-import 'package:randimarket/screens/profile_screen.dart';
-import 'package:randimarket/screens/cita_screen.dart';
+import 'package:llama_market/screens/chat_list_screen.dart';
+import 'package:llama_market/screens/home_screen.dart';
+import 'package:llama_market/screens/profile_screen.dart';
+import 'package:llama_market/screens/cita_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // 🔴 AÑADIDO
 
 class MainScreen extends StatefulWidget {

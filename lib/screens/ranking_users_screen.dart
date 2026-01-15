@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:randimarket/screens/info_servicio.dart';
+import 'package:llama_market/screens/info_servicio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RankingServiciosScreen extends StatefulWidget {

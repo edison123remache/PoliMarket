@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:randimarket/screens/register_screen.dart';
-import 'package:randimarket/screens/reset_password_dialog.dart';
+import 'package:llama_market/screens/register_screen.dart';
+import 'package:llama_market/screens/reset_password_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 

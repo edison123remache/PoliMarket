@@ -4,8 +4,8 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
-import 'package:randimarket/screens/home_screen.dart';
-import 'package:randimarket/screens/update_password_screen.dart';
+import 'package:llama_market/screens/home_screen.dart';
+import 'package:llama_market/screens/update_password_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 

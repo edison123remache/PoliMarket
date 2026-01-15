@@ -102,7 +102,7 @@ class _UsuariosAdminScreenState extends State<UsuariosAdminScreen> {
         elevation: 0,
         backgroundColor: Colors.white,
         title: const Text(
-          "Usuarios PoliMarket",
+          "Usuarios LlamaMarket",
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.w900,
