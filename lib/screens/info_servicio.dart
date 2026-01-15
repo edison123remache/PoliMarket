@@ -542,16 +542,18 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
                     children: [
                       _buildCarruselFotos(fotos),
                       // Gradiente naranja sutil
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.5),
-                              Colors.transparent,
-                              Colors.transparent,
-                            ],
+                      IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.5),
+                                Colors.transparent,
+                                Colors.transparent,
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -561,7 +563,9 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
                           bottom: 20,
                           left: 0,
                           right: 0,
-                          child: _buildImageIndicator(fotos.length),
+                          child: IgnorePointer(
+                            child: _buildImageIndicator(fotos.length),
+                          ),
                         ),
                     ],
                   ),
@@ -719,6 +723,7 @@ class _DetalleServicioScreenState extends State<DetalleServicioScreen> {
       );
     }
     return PageView.builder(
+      scrollDirection: Axis.horizontal,
       itemCount: fotos.length,
       onPageChanged: (index) => setState(() => _currentImageIndex = index),
       itemBuilder: (context, index) {
